@@ -22,14 +22,10 @@ import (
 
 */
 
-const loopLevel = false
-
-var levelMap = curMap
-
 type merchantArrType [merchantNumberInit]point
-type stoneArrType [stoneNumberInit + grassNumberInit]point
+type stoneArrType [stoneArrLen]point
+type grassArrType [grassArrLen]point
 type stoneFloatArrType [stoneFloatNumberInit]point
-type grassArrType [stoneNumberInit + grassNumberInit]point
 type goblinArrType [goblinNumberInit]point
 type dragonArrType [len(dragonDirInit)]pointWithDir
 type beamArrType [len(beamDirInit)]pointWithDir
@@ -48,23 +44,28 @@ type data struct {
 	sailor   point           // 8 普通角色，推一个对象
 	merchant merchantArrType // 9 普通角色，推一个对象
 
+	// 石头/水晶
 	stones stoneArrType // s
-	// 用大写 S 表示可以反射的石头？
+	// 用大写 S 表示可被反射的石头？
 	stoneFloats stoneFloatArrType // F todo
 
+	// 草
 	grass grassArrType // w
 
+	// 怪物
+	goblins goblinArrType // g
+	dragons dragonArrType // d
+
+	// 镜子
 	mirrors     mirrorArrType    // M
 	mirrorRefs  mirrorRefArrType // R 主镜子 + 可以被反射
 	mirrorAuxes mirrorAuxArrType // m 关卡名中称其为 mundane
 
+	// 光束
 	beams beamArrType // b 高 4 位是类型，低 4 位是方向
 
-	goblins goblinArrType // g
-	dragons dragonArrType // d
-
 	// 门的开闭
-	doorOpened        [doorKinds]bool
+	doorOpened        [len(doors)]bool
 	monsterDoorOpened bool
 
 	curChar int8
@@ -125,7 +126,7 @@ func init() {
 		panic("没有修改 goblin number")
 	}
 	if dragonNum != len(dragonArrType{}) {
-		panic("没有修改 dragon number")
+		panic("没有修改 dragon dir")
 	}
 	if beamNum != len(beamArrType{}) {
 		panic("没有修改 beam number")
@@ -134,23 +135,23 @@ func init() {
 		panic("没有修改 beam type")
 	}
 	if mirrorNum != len(mirrorArrType{}) {
-		panic("没有修改 mirrorDir")
+		panic("没有修改 mirror dir")
 	}
 	if mirrorRefNum != len(mirrorRefArrType{}) {
-		panic("没有修改 mirrorRefDir")
+		panic("没有修改 mirror ref dir")
 	}
 	if mirrorAuxNum != len(mirrorAuxArrType{}) {
-		panic("没有修改 mirrorAuxDir")
+		panic("没有修改 mirror aux dir")
 	}
 	if !allowCloneMan && merchantNum != len(merchantArrType{}) {
 		panic("没有修改 merchant number")
 	}
-	if bits.OnesCount(uint(doorMask)) != doorKinds {
+	if bits.OnesCount(uint(doorMask)) != len(doors) {
 		panic("没有修改 door kinds")
 	}
 }
 
-func (d *data) allMonstersDied() bool {
+func (d *data) areMonstersDied() bool {
 	for _, p := range d.goblins {
 		if p != noPos {
 			return false
@@ -336,25 +337,18 @@ func (d *data) isFallingIntoGround(p point) bool {
 // 在水面上且下面没有石头（或者门）的对象，落入水中
 // todo 摧毁水中的镜子
 func (d *data) isFallIntoWater(p point) bool {
-	// todo z > 0
+	// todo z > 0 中途遇到障碍
 	// todo 栏杆
 	//if !canFallIntoWater && slices.Contains(d.stones[:], p) { 
 	//	return false
 	//}
-	if p.z == -1 || p == noPos {
+	if p.z == -1 || p == noPos || levelMap[0][p.x][p.y] != '~' {
 		return false
 	}
-	// todo 门
-	if levelMap[0][p.x][p.y] == '~' && !slices.Contains(d.stones[:], point{p.x, p.y, -1}) {
+	if !slices.Contains(d.stones[:], point{p.x, p.y, -1}) {
 		return true
 	}
-	// todo 特殊处理机关
-	//if 'X' <= ch && ch <= 'Z' {
-	//	sw := pos[ch-'A'+'a']
-	//	if d.wizard != sw && d.thief != sw && d.stones[0] != sw {
-	//		return true
-	//	}
-	//}
+	// todo 水中的门
 	return false
 }
 
@@ -550,7 +544,7 @@ func (d *data) changePos(oldP, newP point, newDir uint8) {
 	}
 }
 
-func solveLevel(debug bool) []string {
+func solveLevel() []string {
 	sailorInitArr := merchantArrType{}
 	for i := range sailorInitArr {
 		sailorInitArr[i] = noPos
@@ -573,6 +567,7 @@ func solveLevel(debug bool) []string {
 	goblinInitArr := goblinArrType{}
 	dragonInitArr := dragonArrType{}
 	beamInitArr := beamArrType{}
+
 	__curChar := initChar
 	__warrior := warriorPosInit
 	__thief := thiefPosInit
@@ -584,6 +579,7 @@ func solveLevel(debug bool) []string {
 	__sailor := noPos
 	__sailors := sailorInitArr[:0]
 	__merchants := merchantInitArr[:0]
+
 	__mirrors := mirrorInitArr[:0]
 	__mirrorRefs := mirrorRefInitArr[:0]
 	__mirrorAuxes := mirrorAuxInitArr[:0]
@@ -592,7 +588,6 @@ func solveLevel(debug bool) []string {
 	__goblins := goblinInitArr[:0]
 	__dragons := dragonInitArr[:0]
 	__beams := beamInitArr[:0]
-	weightSwitches := [len(doors)][]point{}
 	for z, grid := range levelMap {
 		for x, row := range grid {
 			for y, ch := range row {
@@ -744,7 +739,6 @@ func solveLevel(debug bool) []string {
 	}
 
 	levelData := data{
-		curChar:  __curChar,
 		warrior:  __warrior,
 		thief:    __thief,
 		wizard:   __wizard,
@@ -765,6 +759,11 @@ func solveLevel(debug bool) []string {
 		mirrorAuxes: mirrorAuxInitArr,
 
 		beams: beamInitArr,
+
+		doorOpened:        doorOpenedInit,
+		monsterDoorOpened: monsterDoorOpenedInit,
+
+		curChar: __curChar,
 	}
 
 	type pair struct {
@@ -786,9 +785,6 @@ func solveLevel(debug bool) []string {
 					break
 				}
 			}
-			//if opened {
-			//	fmt.Printf("门 %d 开启\n", i)
-			//}
 			d.doorOpened[i] = opened
 
 			// 石头被门压碎（石头在门中，但门没有打开）
@@ -827,23 +823,25 @@ func solveLevel(debug bool) []string {
 		}
 
 		// 对象下落
-		// todo 落水
-		for _, p := range allMovableObjs {
-			// 如果 p 是牧师或其邻居，且正被攻击，那么 p 不会下落
-			if d.isProtected(p) && d.isAttacked(p, burnedPos) {
-				continue
-			}
-			oldP := p
-			p.z--
-			for p.z >= 0 && d.isValidPos(p) && !slices.Contains(allMovableObjs, p) {
-				p.z--
-			}
-			p.z++
-			if oldP.z != p.z {
-				if !allowFallIntoGround {
-					return
+		// todo 整合后面的落水逻辑
+		if mapSizeH > 1 {
+			for _, p := range allMovableObjs {
+				// 如果 p 是牧师或其邻居，且正被攻击，那么 p 不会下落
+				if d.isProtected(p) && d.isAttacked(p, burnedPos) {
+					continue
 				}
-				d.changePos(oldP, p, math.MaxUint8)
+				oldP := p
+				p.z--
+				for p.z >= 0 && d.isValidPos(p) && !slices.Contains(allMovableObjs, p) {
+					p.z--
+				}
+				p.z++
+				if oldP.z != p.z {
+					if !allowFallIntoGround {
+						return
+					}
+					d.changePos(oldP, p, math.MaxUint8)
+				}
 			}
 		}
 
@@ -889,7 +887,7 @@ func solveLevel(debug bool) []string {
 			if canDestroyObj {
 				d.goblins = goblins
 				d.dragons = dragons
-				d.monsterDoorOpened = d.allMonstersDied()
+				d.monsterDoorOpened = d.areMonstersDied()
 			}
 		}
 
@@ -978,11 +976,7 @@ func solveLevel(debug bool) []string {
 		}
 	}
 
-	info0 := ""
-	if debug {
-		info0 = "init"
-	}
-	add(data{}, levelData, info0)
+	add(data{}, levelData, "")
 
 	for len(queue) > 0 {
 		// 注意入队的时候修改了物品的位置（重力落下）
@@ -997,32 +991,36 @@ func solveLevel(debug bool) []string {
 			slices.SortFunc(allChars, cmpPoint)
 			pass = slices.Equal(allChars, finals)
 		} else {
-			// 简化版：门开启
-			pass = d.monsterDoorOpened // d.opened
+			// 简化版：怪物门开启（怪物都被杀）
+			pass = d.monsterDoorOpened
 		}
 		if pass {
 			// 生成操作序列
 			path := []string{}
-			for d != (data{}) {
+			for {
 				var ok bool
-				p, ok := from[d]
+				pre, ok := from[d]
 				if !ok {
 					panic("代码修改了 d，与存入的 d 不符")
 				}
-				//if d.cleric == (point{5, 5, 1}) {
-				//	println(-1)
-				//}
-				path = append(path, p.info)
-				d = p.data
+				d = pre.data
+				if d == (data{}) { // 初始状态
+					break
+				}
+				path = append(path, pre.info)
 			}
 			slices.Reverse(path)
 			return path
 		}
 
-		// 移动当前角色
 		// todo 如果角色的头上有物品，物品会跟着移动（注意镜子的方向会变）    堆叠上限是多少？？
 		// todo 即使人没有移动，切换方向也会改变头上物品（镜子、激光等）的方向
 		// todo 多控时，如果下一个位置是没有石头的水，则一个角色无法移动（已在商人中实现）
+
+		// todo 修改 changePos 的代码，添加一个参数 alsoMoveTop bool，
+		//      使得当物品移动时，物品上方的物品（如果有）也跟着移动
+
+		// 移动当前角色
 		switch d.curChar {
 		case charDefault:
 			panic("代码有误，当前角色不能为 charDefault")
@@ -1053,13 +1051,7 @@ func solveLevel(debug bool) []string {
 				}
 				np := point{x, y, z}
 				newData.warrior = np
-				var info string
-				if debug {
-					info = fmt.Sprintf("士 %s", debugDir4String[dIdx])
-				} else {
-					info = dir4String[dIdx]
-				}
-				add(d, newData, info)
+				add(d, newData, dir4String[dIdx])
 			}
 		case charThief:
 			// 普通移动一步
@@ -1077,13 +1069,7 @@ func solveLevel(debug bool) []string {
 					newData.changePos(back, p0, math.MaxUint8)
 				}
 				newData.thief = np
-				var info string
-				if debug {
-					info = fmt.Sprintf("贼 %s", debugDir4String[dIdx])
-				} else {
-					info = dir4String[dIdx]
-				}
-				add(d, newData, info)
+				add(d, newData, dir4String[dIdx])
 			}
 		case charWizard:
 			p0 := d.wizard
@@ -1126,13 +1112,7 @@ func solveLevel(debug bool) []string {
 					newData := d
 					newData.changePos(newP, p0, math.MaxUint8) // newP 换到 p0
 					newData.wizard = newP                      // 法师换到 newP
-					var info string
-					if debug {
-						info = fmt.Sprintf("法 %s 交换", debugDir4String[dIdx])
-					} else {
-						info = dir4String[dIdx]
-					}
-					add(d, newData, info)
+					add(d, newData, dir4String[dIdx])          // swap
 					continue nextDir
 				}
 
@@ -1143,13 +1123,7 @@ func solveLevel(debug bool) []string {
 				}
 				newData := d
 				newData.wizard = newP
-				var info string
-				if debug {
-					info = fmt.Sprintf("法 %s", debugDir4String[dIdx])
-				} else {
-					info = dir4String[dIdx]
-				}
-				add(d, newData, info)
+				add(d, newData, dir4String[dIdx]) // move
 			}
 		case charCleric:
 			// 普通移动一步
@@ -1238,13 +1212,7 @@ func solveLevel(debug bool) []string {
 						// todo （待确认）如果 z-2 也移动了，那么再再走一格
 					}
 
-					var info string
-					if debug {
-						info = fmt.Sprintf("诗人 %s", debugDir4String[dIdx])
-					} else {
-						info = dir4String[dIdx]
-					}
-					add(d, newData, info)
+					add(d, newData, dir4String[dIdx])
 				}
 			}
 		case charDruid:
@@ -1257,13 +1225,7 @@ func solveLevel(debug bool) []string {
 					newData := d
 					newData.stones[:][0] = newData.grass[i] // 加个切片避免报错
 					newData.grass[i] = noPos
-					var info string
-					if debug {
-						info = fmt.Sprintf("德 %s 草变石", debugDir4String[dIdx])
-					} else {
-						info = dir4String[dIdx]
-					}
-					add(d, newData, info)
+					add(d, newData, dir4String[dIdx]) // trans
 					continue
 				}
 
@@ -1273,13 +1235,7 @@ func solveLevel(debug bool) []string {
 						newData := d
 						newData.grass[:][0] = newData.stones[i]
 						newData.stones[i] = noPos
-						var info string
-						if debug {
-							info = fmt.Sprintf("德 %s 石变草", debugDir4String[dIdx])
-						} else {
-							info = dir4String[dIdx]
-						}
-						add(d, newData, info)
+						add(d, newData, dir4String[dIdx]) // trans
 						continue
 					}
 				}
@@ -1290,13 +1246,7 @@ func solveLevel(debug bool) []string {
 				}
 				newData := d
 				newData.druid = newP
-				var info string
-				if debug {
-					info = fmt.Sprintf("德 %s", debugDir4String[dIdx])
-				} else {
-					info = dir4String[dIdx]
-				}
-				add(d, newData, info)
+				add(d, newData, dir4String[dIdx]) // move
 			}
 		case charExplorer:
 			// 普通移动一步
@@ -1304,33 +1254,48 @@ func solveLevel(debug bool) []string {
 			for dIdx, dir := range directions4 {
 				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
 				if !d.isValidPos(newP) {
-					// 如果头上有喷火龙或者镜子，修改其朝向
-					if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
-						newData := d
-						newData.dragons[i].dir = uint8(dIdx)
-						add(d, newData, dir4String[dIdx])
+					if mapSizeH > 1 {
+						// 如果头上有喷火龙或者镜子，修改其朝向
+						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
+							newData := d
+							newData.dragons[i].dir = uint8(dIdx)
+							add(d, newData, dir4String[dIdx])
+						}
+						// todo 镜子
 					}
-					// todo 镜子
 					continue // 枚举另一个方向
 				}
 
 				newData := d
-				newData.explorer = newP
-				oldTop := point{p0.x, p0.y, p0.z + 1}
-				// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
-				if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
-					newTop := newP
-					newTop.z++
-					if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
-						continue // todo 暂时禁止喷火龙落地 
+				if allowExplorerPushItem {
+					if i := slices.Index(allMovableObjs, newP); i >= 0 {
+						// 推物品
+						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
+						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
+							continue // 枚举另一个方向
+						}
+						newData.changePos(newP, nxt2, math.MaxUint8)
 					}
-					newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
-				} else if slices.Contains(allMovableObjs, oldTop) {
-					newTop := newP
-					newTop.z++
-					newData.changePos(oldTop, newTop, uint8(dIdx))
 				}
-				// todo 镜子
+
+				newData.explorer = newP
+				if mapSizeH > 1 {
+					oldTop := point{p0.x, p0.y, p0.z + 1}
+					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
+					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
+						newTop := newP
+						newTop.z++
+						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
+							continue // todo 暂时禁止喷火龙落地 
+						}
+						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
+					} else if slices.Contains(allMovableObjs, oldTop) {
+						newTop := newP
+						newTop.z++
+						newData.changePos(oldTop, newTop, uint8(dIdx))
+					}
+					// todo 镜子
+				}
 				add(d, newData, dir4String[dIdx])
 			}
 		case charSailor:
@@ -1339,13 +1304,15 @@ func solveLevel(debug bool) []string {
 			for dIdx, dir := range directions4 {
 				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
 				if !d.isValidPos(newP) {
-					// 如果头上有喷火龙或者镜子，修改其朝向
-					if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
-						newData := d
-						newData.dragons[i].dir = uint8(dIdx)
-						add(d, newData, dir4String[dIdx])
+					if mapSizeH > 1 {
+						// 如果头上有喷火龙或者镜子，修改其朝向
+						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
+							newData := d
+							newData.dragons[i].dir = uint8(dIdx)
+							add(d, newData, dir4String[dIdx])
+						}
+						// todo 镜子
 					}
-					// todo 镜子
 					continue // 枚举另一个方向
 				}
 
@@ -1362,22 +1329,23 @@ func solveLevel(debug bool) []string {
 				}
 
 				newData.sailor = newP
-				oldTop := point{p0.x, p0.y, p0.z + 1}
-				// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
-				if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
-					newTop := newP
-					newTop.z++
-					if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
-						continue // todo 暂时禁止喷火龙落地 
+				if mapSizeH > 1 {
+					oldTop := point{p0.x, p0.y, p0.z + 1}
+					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
+					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
+						newTop := newP
+						newTop.z++
+						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
+							continue // todo 暂时禁止喷火龙落地 
+						}
+						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
+					} else if slices.Contains(allMovableObjs, oldTop) {
+						newTop := newP
+						newTop.z++
+						newData.changePos(oldTop, newTop, uint8(dIdx))
 					}
-					newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
-				} else if slices.Contains(allMovableObjs, oldTop) {
-					newTop := newP
-					newTop.z++
-					newData.changePos(oldTop, newTop, uint8(dIdx))
+					// todo 镜子
 				}
-
-				// todo 镜子
 				add(d, newData, dir4String[dIdx])
 			}
 		case charMerchant:
@@ -1511,10 +1479,8 @@ func solveLevel(debug bool) []string {
 					// 反射
 					newP := d.reflectTo(mirror, dir, step, allMovableObjs)
 					if newP == noPos {
-						return
+						return // 反射失败
 					}
-
-					// 反射成功
 					itemIdx := slices.Index(allMovableObjs, oldP)
 					if swapped>>itemIdx&1 > 0 {
 						// todo 所有对象的分身
@@ -1574,6 +1540,11 @@ const (
 )
 
 const (
-	beamDefault uint8 = iota
-	beamPush
+	beamDefault   = iota
+	beamOpen      // 红
+	beamDouble    // 橙
+	beamDestroy   // 黄
+	beamPenetrate // 绿
+	beamPush      // 青
+	beamTeleport  // 紫
 )
