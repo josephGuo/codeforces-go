@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/bits"
 	"slices"
+	"strings"
 )
 
 /*
@@ -23,10 +24,10 @@ import (
 */
 
 type merchantArrType [merchantNumberInit]point
-type stoneArrType [stoneArrLen]point
-type grassArrType [grassArrLen]point
+type stoneArrType [stoneNumberInit + grassNumberInit]point
+type grassArrType [stoneNumberInit + grassNumberInit]point
 type stoneFloatArrType [stoneFloatNumberInit]point
-type goblinArrType [goblinNumberInit]point
+type goblinArrType [goblinNumberInit]pointWithDir
 type dragonArrType [len(dragonDirInit)]pointWithDir
 type beamArrType [len(beamDirInit)]pointWithDir
 type mirrorArrType [len(mirrorDirInit) / 2]pointWithDir
@@ -47,7 +48,7 @@ type data struct {
 	// 石头/水晶
 	stones stoneArrType // s
 	// 用大写 S 表示可被反射的石头？
-	stoneFloats stoneFloatArrType // F todo
+	stoneFloats stoneFloatArrType // F todo 跳石
 
 	// 草
 	grass grassArrType // w
@@ -65,10 +66,11 @@ type data struct {
 	beams beamArrType // b 高 4 位是类型，低 4 位是方向
 
 	// 门的开闭
-	doorOpened        [len(doors)]bool
+	doorOpened        [doorKinds]bool
 	monsterDoorOpened bool
 
-	curChar int8
+	// 当前角色类型
+	curCharTypeNum int8
 }
 
 var mapSizeH, mapSizeN, mapSizeM int8
@@ -151,9 +153,9 @@ func init() {
 	}
 }
 
-func (d *data) areMonstersDied() bool {
+func (d *data) areAllMonstersDied() bool {
 	for _, p := range d.goblins {
-		if p != noPos {
+		if p.point != noPos {
 			return false
 		}
 	}
@@ -166,7 +168,11 @@ func (d *data) areMonstersDied() bool {
 }
 
 // 可以用 bitset 优化
-func (d *data) getAllCharPos() []point {
+func (d *data) getAllCharPos(isBigMap bool) []point {
+	if isBigMap {
+		return nil
+	}
+
 	// todo 改成直接计算 data 中各个 point 数组的长度之和
 	allChars := make([]point, 0, initCharNum)
 	if d.warrior != noPos {
@@ -201,8 +207,8 @@ func (d *data) getAllCharPos() []point {
 	return allChars
 }
 
-func (d *data) getAllMovableObjPos() ([]point, []point) {
-	chars := d.getAllCharPos()
+func (d *data) getAllMovableObjPos(isBigMap bool) ([]point, []point) {
+	chars := d.getAllCharPos(isBigMap)
 	objs := chars
 	for _, p := range d.mirrors {
 		if p.point != noPos {
@@ -225,8 +231,8 @@ func (d *data) getAllMovableObjPos() ([]point, []point) {
 		}
 	}
 	for _, p := range d.goblins {
-		if p != noPos {
-			objs = append(objs, p)
+		if p.point != noPos {
+			objs = append(objs, p.point)
 		}
 	}
 	for _, p := range d.dragons {
@@ -360,7 +366,7 @@ func (d *data) isAttacked(p point, burnPos []point) bool {
 
 	// 哥布林
 	for _, g := range d.goblins {
-		if isNeighbor4(g, p) {
+		if isNeighbor4(g.point, p) {
 			return true
 		}
 	}
@@ -368,25 +374,36 @@ func (d *data) isAttacked(p point, burnPos []point) bool {
 	return false
 }
 
-func (d *data) isDie(p point, burnPos []point, isChar bool) bool {
+const (
+	dieTypeNo = iota
+	dieTypeCrushed
+	dieTypeAttacked
+	dieTypeDrown
+)
+
+func (d *data) getDieType(p point, burnPos []point, isChar bool) int {
 	// 被门压死
 	// todo 忽略向上的门（应该抬高角色）
 	for i, opened := range d.doorOpened {
 		if !opened && slices.Contains(doors[i][:], p) {
-			return true
+			return dieTypeCrushed
 		}
 	}
 
 	// 淹死
 	if d.isFallIntoWater(p) {
-		return true
+		return dieTypeDrown
 	}
 
 	if isChar && d.isProtected(p) {
-		return false
+		return dieTypeNo
 	}
 
-	return d.isAttacked(p, burnPos)
+	if d.isAttacked(p, burnPos) {
+		return dieTypeAttacked
+	}
+
+	return dieTypeNo
 }
 
 // 反射：从 mirror.point 出发，往 dir 方向走 step 步
@@ -517,16 +534,17 @@ func (d *data) changePos(oldP, newP point, newDir uint8) {
 			d.stones[i] = newP
 		}
 
-		if i := slices.Index(d.goblins[:], oldP); i >= 0 {
+		if i := pdIndex(d.goblins[:], oldP); i >= 0 {
 			changed = true
-			d.goblins[i] = newP
+			d.goblins[i].point = newP
 		}
 
 		if i := pdIndex(d.dragons[:], oldP); i >= 0 {
 			changed = true
 			d.dragons[i].point = newP
 			if newDir != math.MaxUint8 {
-				d.dragons[i].dir = newDir
+				d.dragons[i].dir &^= 7
+				d.dragons[i].dir |= newDir
 			}
 		}
 
@@ -542,6 +560,34 @@ func (d *data) changePos(oldP, newP point, newDir uint8) {
 			panic("没有发生修改，请检查代码")
 		}
 	}
+}
+
+func (d *data) getCurCharTypePos() (pos point) {
+	switch d.curCharTypeNum {
+	case charDefault:
+		panic("代码有误，当前角色不能为 charDefault")
+	case charWarrior:
+		pos = d.warrior
+	case charThief:
+		pos = d.thief
+	case charWizard:
+		pos = d.wizard
+	case charCleric:
+		pos = d.cleric
+	case charBard:
+		pos = d.bard
+	case charDruid:
+		pos = d.druid
+	case charExplorer:
+		pos = d.explorer
+	case charSailor:
+		pos = d.sailor
+	case charMerchant:
+		pos = d.merchant[:][0]
+	default:
+		panic("未找到当前角色")
+	}
+	return
 }
 
 func solveLevel() []string {
@@ -568,7 +614,7 @@ func solveLevel() []string {
 	dragonInitArr := dragonArrType{}
 	beamInitArr := beamArrType{}
 
-	__curChar := initChar
+	__curCharTypeNum := initCharTypeNum
 	__warrior := warriorPosInit
 	__thief := thiefPosInit
 	__wizard := wizardPosInit
@@ -594,57 +640,57 @@ func solveLevel() []string {
 				p := point{int8(x), int8(y), int8(z)}
 				switch ch {
 				case 'A':
-					if __curChar < 0 {
-						__curChar = charWarrior
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charWarrior
 					}
 					if __warrior == noPos {
 						__warrior = p
 					}
 				case 'T':
-					if __curChar < 0 {
-						__curChar = charThief
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charThief
 					}
 					if __thief == noPos {
 						__thief = p
 					}
 				case 'W':
-					if __curChar < 0 {
-						__curChar = charWizard
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charWizard
 					}
 					if __wizard == noPos {
 						__wizard = p
 					}
 				case 'C':
-					if __curChar < 0 {
-						__curChar = charCleric
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charCleric
 					}
 					if __cleric == noPos {
 						__cleric = p
 					}
 				case 'B':
-					if __curChar < 0 {
-						__curChar = charBard
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charBard
 					}
 					if __bard == noPos {
 						__bard = p
 					}
 				case 'D':
-					if __curChar < 0 {
-						__curChar = charDruid
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charDruid
 					}
 					if __druid == noPos {
 						__druid = p
 					}
 				case '7':
-					if __curChar < 0 {
-						__curChar = charExplorer
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charExplorer
 					}
 					if __explorer == noPos {
 						__explorer = p
 					}
 				case '8':
-					if __curChar < 0 {
-						__curChar = charSailor
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charSailor
 					}
 					if __sailor == noPos {
 						__sailor = p
@@ -652,8 +698,8 @@ func solveLevel() []string {
 					_ = __sailors
 					//__sailors = append(__sailors, p)
 				case '9':
-					if __curChar < 0 {
-						__curChar = charMerchant
+					if __curCharTypeNum < 0 {
+						__curCharTypeNum = charMerchant
 					}
 					__merchants = append(__merchants, p)
 				case 'M':
@@ -676,7 +722,7 @@ func solveLevel() []string {
 				case 'w':
 					__grass = append(__grass, p)
 				case 'g':
-					__goblins = append(__goblins, p)
+					__goblins = append(__goblins, pointWithDir{p, math.MaxUint8})
 				case 'd':
 					idx := len(__dragons)
 					__dragons = append(__dragons, pointWithDir{p, getDir(dragonDirInit[idx])})
@@ -685,10 +731,6 @@ func solveLevel() []string {
 					dir := getDir(beamDirInit[idx])
 					tp := beamTypeInit[idx] - '0'
 					__beams = append(__beams, pointWithDir{p, tp<<4 | dir})
-				case '*': // 弃用
-					weightSwitches[:][0] = append(weightSwitches[:][0], p)
-				case 'n': // 弃用
-					doors[:][0] = append(doors[:][0], p)
 				case 'x', 'y', 'z', '{':
 					weightSwitches[ch-'x'] = append(weightSwitches[ch-'x'], p)
 				case 'X', 'Y', 'Z', '[':
@@ -705,6 +747,9 @@ func solveLevel() []string {
 			}
 		}
 	}
+
+	// 有时候会手动添加 finals 的初始值，总体不一定是有序的
+	slices.SortFunc(finals, cmpPoint)
 
 	validChars := []int8{}
 	if __warrior != noPos {
@@ -738,6 +783,10 @@ func solveLevel() []string {
 		validChars = append(validChars, charMerchant)
 	}
 
+	if !slices.Contains(validChars, __curCharTypeNum) {
+		panic(fmt.Sprint("请修改 initCharTypeNum"))
+	}
+
 	levelData := data{
 		warrior:  __warrior,
 		thief:    __thief,
@@ -763,7 +812,7 @@ func solveLevel() []string {
 		doorOpened:        doorOpenedInit,
 		monsterDoorOpened: monsterDoorOpenedInit,
 
-		curChar: __curChar,
+		curCharTypeNum: __curCharTypeNum,
 	}
 
 	type pair struct {
@@ -773,8 +822,15 @@ func solveLevel() []string {
 	from := map[data]pair{} // 同时充当 vis 的功能
 	queue := []data{}
 
+	//hasStone := map[point]bool{}
+
 	add := func(last, d data, info string) {
-		_, allMovableObjs := d.getAllMovableObjPos()
+		//if !hasStone[d.stones[0]] {
+		//	hasStone[d.stones[0]] = true
+		//	fmt.Println(d.stones[0])
+		//}
+
+		_, allMovableObjs := d.getAllMovableObjPos(isBigMap)
 
 		// 先确定门的开闭
 		for i, weightSwitch := range weightSwitches {
@@ -805,6 +861,9 @@ func solveLevel() []string {
 		var burnedPos []point
 		if !d.monsterDoorOpened { // 喷火龙没有 die（如果没有怪物门，monsterDoorOpened = false）
 			for _, dra := range d.dragons {
+				if dra.dir&dirStoneDelta > 0 { // 是石头
+					continue
+				}
 				dir := directions4[dra.dir]
 				cur := point{dra.x, dra.y, dra.z}
 				for {
@@ -846,38 +905,45 @@ func solveLevel() []string {
 		}
 
 		// 先判断是否有角色死亡
-		for _, char := range d.getAllCharPos() {
-			if d.isDie(char, burnedPos, true) {
+		for _, char := range d.getAllCharPos(isBigMap) {
+			if d.getDieType(char, burnedPos, true) != dieTypeNo {
 				return
 			}
 		}
 
-		die := false
-		if !d.monsterDoorOpened {
+		dieType := dieTypeNo
+		// 一开始，以及切换角色，都不结算攻击
+		isSwitching := info[0] == 'c' || '1' <= info[0] && info[0] <= '9'
+		if !isSwitching && !d.monsterDoorOpened {
 			// 哥布林
 			goblins := d.goblins
 			if len(d.goblins) > 0 {
 				for i, p := range d.goblins {
-					if d.isDie(p, burnedPos, false) {
+					// todo 变成石头的哥布林
+					if tp := d.getDieType(p.point, burnedPos, false); tp != dieTypeNo {
 						if !canDestroyObj {
 							return
 						}
-						die = true
-						goblins[i] = noPos
+						dieType = tp
+						goblins[i].point = noPos
 					}
 				}
-				slices.SortFunc(goblins[:], cmpPoint)
+				slices.SortFunc(goblins[:], cmpPointWithDir)
 			}
 
 			// 喷火龙
 			dragons := d.dragons
 			if len(d.dragons) > 0 {
 				for i, p := range d.dragons {
-					if d.isDie(p.point, burnedPos, false) {
+					if p.dir&dirStoneDelta > 0 { // 是石头
+						// todo 落水
+						continue
+					}
+					if tp := d.getDieType(p.point, burnedPos, false); tp != dieTypeNo {
 						if !canDestroyObj {
 							return
 						}
-						die = true
+						dieType = tp
 						dragons[i].point = noPos
 					}
 				}
@@ -887,7 +953,7 @@ func solveLevel() []string {
 			if canDestroyObj {
 				d.goblins = goblins
 				d.dragons = dragons
-				d.monsterDoorOpened = d.areMonstersDied()
+				d.monsterDoorOpened = d.areAllMonstersDied()
 			}
 		}
 
@@ -943,6 +1009,7 @@ func solveLevel() []string {
 					if !allowFallIntoWater {
 						return
 					}
+					info += "W"
 					sto[i].z = -1
 				}
 			}
@@ -968,28 +1035,35 @@ func solveLevel() []string {
 		}
 
 		if _, ok := from[d]; !ok {
-			if die {
-				info += "K" // 怪物死亡的动画
+			if dieType == dieTypeAttacked {
+				info += "K" // 怪物攻击动画
+			} else if dieType == dieTypeDrown {
+				info += "W"
 			}
 			from[d] = pair{last, info}
 			queue = append(queue, d)
 		}
 	}
 
-	add(data{}, levelData, "")
+	add(data{}, levelData, "c")
 
 	for len(queue) > 0 {
 		// 注意入队的时候修改了物品的位置（重力落下）
 		d := queue[0]
 		queue = queue[1:]
 
-		allChars, allMovableObjs := d.getAllMovableObjPos()
+		allChars, allMovableObjs := d.getAllMovableObjPos(isBigMap)
 
 		var pass bool
 		if !targetIsClearAllMonsters {
 			// 标准版：所有人都到达终点
-			slices.SortFunc(allChars, cmpPoint)
-			pass = slices.Equal(allChars, finals)
+			if isBigMap {
+				p := d.getCurCharTypePos()
+				pass = slices.Equal([]point{p}, finals)
+			} else {
+				slices.SortFunc(allChars, cmpPoint)
+				pass = slices.Equal(allChars, finals)
+			}
 		} else {
 			// 简化版：怪物门开启（怪物都被杀）
 			pass = d.monsterDoorOpened
@@ -1007,7 +1081,9 @@ func solveLevel() []string {
 				if d == (data{}) { // 初始状态
 					break
 				}
-				path = append(path, pre.info)
+				if pre.info != "IGNORE" {
+					path = append(path, pre.info)
+				}
 			}
 			slices.Reverse(path)
 			return path
@@ -1020,398 +1096,7 @@ func solveLevel() []string {
 		// todo 修改 changePos 的代码，添加一个参数 alsoMoveTop bool，
 		//      使得当物品移动时，物品上方的物品（如果有）也跟着移动
 
-		// 移动当前角色
-		switch d.curChar {
-		case charDefault:
-			panic("代码有误，当前角色不能为 charDefault")
-		case charWarrior:
-			// 普通移动一步
-			p0 := d.warrior
-			for dIdx, dir := range directions4 {
-				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
-				// 该方向有多少个连续的对象
-				cnt := 0
-				cur := point{x, y, z}
-				for slices.Contains(allMovableObjs, cur) {
-					cnt++
-					cur.x += dir.x
-					cur.y += dir.y
-					cur.z += dir.z
-				}
-				// 前面是否有空地
-				if !d.isValidPos(cur) {
-					continue // 枚举另一个方向
-				}
-
-				newData := d
-				for range cnt {
-					nxt := point{cur.x - dir.x, cur.y - dir.y, cur.z - dir.z}
-					newData.changePos(nxt, cur, math.MaxUint8)
-					cur = nxt
-				}
-				np := point{x, y, z}
-				newData.warrior = np
-				add(d, newData, dir4String[dIdx])
-			}
-		case charThief:
-			// 普通移动一步
-			p0 := d.thief
-			for dIdx, dir := range directions4 {
-				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
-				np := point{x, y, z}
-				if !d.isValidPos(np) || slices.Contains(allMovableObjs, np) {
-					continue // 枚举另一个方向
-				}
-				newData := d
-				back := point{p0.x - dir.x, p0.y - dir.y, p0.z - dir.z}
-				if slices.Contains(allMovableObjs, back) {
-					// 拉人/物 -> 当前位置
-					newData.changePos(back, p0, math.MaxUint8)
-				}
-				newData.thief = np
-				add(d, newData, dir4String[dIdx])
-			}
-		case charWizard:
-			p0 := d.wizard
-		nextDir:
-			for dIdx, dir := range directions4 {
-				// dir 方向是否有可交换对象
-				x, y, z := p0.x, p0.y, p0.z
-				for {
-					x += dir.x
-					y += dir.y
-					z += dir.z
-					newP := point{x, y, z}
-					if !d.isValidPos(newP) {
-						break // 出界或者有障碍物
-					}
-					if !slices.Contains(allMovableObjs, newP) {
-						continue // 空地
-					}
-
-					mir := noPosDir
-					if i := pdIndex(d.mirrors[:], newP); i >= 0 && d.mirrors[i].canReflect(dir) {
-						mir = d.mirrors[i]
-					} else if i := pdIndex(d.mirrorRefs[:], newP); i >= 0 && d.mirrorRefs[i].canReflect(dir) {
-						mir = d.mirrorRefs[i]
-					} else if i := pdIndex(d.mirrorAuxes[:], newP); i >= 0 && d.mirrorAuxes[i].canReflect(dir) {
-						mir = d.mirrorAuxes[i]
-					}
-
-					// 面对的是镜子的正面
-					if mir.point != noPos {
-						dir2 := mir.reflectToAnotherDir(dir)
-						// 沿着光路搜索，找第一个可交换对象
-						newP = d.reflectTo(mir, dir2, math.MaxInt, allMovableObjs)
-						if newP == noPos {
-							break // 镜子反射路径没有任何对象，只能普通移动一步
-						}
-					}
-
-					// 和对象交换位置
-					newData := d
-					newData.changePos(newP, p0, math.MaxUint8) // newP 换到 p0
-					newData.wizard = newP                      // 法师换到 newP
-					add(d, newData, dir4String[dIdx])          // swap
-					continue nextDir
-				}
-
-				// 没有可交换对象，那就普通移动一步
-				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-				if !d.isValidPos(newP) || slices.Contains(allMovableObjs, newP) {
-					continue // 枚举另一个方向
-				}
-				newData := d
-				newData.wizard = newP
-				add(d, newData, dir4String[dIdx]) // move
-			}
-		case charCleric:
-			// 普通移动一步
-			p0 := d.cleric
-			withinBeams := d.withinBeams(p0, allMovableObjs)
-			for dIdx, dir := range directions4 {
-				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-				if !d.isValidPos(newP) {
-					continue // 枚举另一个方向
-				}
-				newData := d
-				if i := slices.Index(allMovableObjs, newP); i >= 0 {
-					if withinBeams>>beamPush&1 == 0 {
-						continue // 枚举另一个方向
-					}
-					if allowPushItem {
-						// 可以推物品
-						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
-						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
-							continue // 枚举另一个方向
-						}
-						newData.changePos(newP, nxt2, math.MaxUint8)
-					}
-				}
-				newData.cleric = newP
-				add(d, newData, dir4String[dIdx])
-			}
-		case charBard:
-			p0 := d.bard
-			items := []point{}
-			for _, p := range allMovableObjs {
-				if chebyshevDis(p, p0) <= 2 {
-					items = append(items, p)
-				}
-			}
-
-			// 普通移动一步
-			// 切比雪夫距离 <= 2 的物品（包括自己）都移动一步
-			for dIdx, dir := range directions4 {
-				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
-				if !d.isValidPos(point{x, y, z}) {
-					continue
-				}
-				slices.SortFunc(items, func(a, b point) int {
-					if dir.x != 0 {
-						return int(b.x*dir.x - a.x*dir.x)
-					}
-					return int(b.y*dir.y - a.y*dir.y)
-				})
-
-				newData := d
-				unmovedItems := []point{}
-				movedItems := []point{}
-				for _, oldP := range items {
-					// item 往前移动一格
-					newP := point{oldP.x + dir.x, oldP.y + dir.y, oldP.z + dir.z}
-					if !d.isValidPos(newP) { // 无法移动
-						unmovedItems = append(unmovedItems, oldP)
-						continue
-					}
-					// 尝试移动
-					if chebyshevDis(newP, p0) > 2 { // item 是力场最前面的点
-						if slices.Contains(allMovableObjs, newP) { // 不能与力场外的对象碰撞
-							unmovedItems = append(unmovedItems, oldP)
-							continue
-						}
-					} else if slices.Contains(unmovedItems, newP) { // 力场后面的点，不能与前面移动失败的对象碰撞
-						unmovedItems = append(unmovedItems, oldP)
-						continue
-					}
-					movedItems = append(movedItems, oldP)
-					newData.changePos(oldP, newP, math.MaxUint8)
-				}
-
-				if !slices.Contains(unmovedItems, p0) {
-					if newData.bard != (point{x, y, z}) {
-						panic("移动错误，代码有误")
-					}
-
-					// 特性：如果诗人脚下是物品，且该物品移动了，那么诗人可以再走一格
-					if slices.Contains(movedItems, point{p0.x, p0.y, p0.z - 1}) {
-						nxtP := point{x + dir.x, y + dir.y, z + dir.z}
-						if d.isValidPos(nxtP) && !slices.Contains(unmovedItems, nxtP) {
-							newData.bard = nxtP
-						}
-						// todo （待确认）如果 z-2 也移动了，那么再再走一格
-					}
-
-					add(d, newData, dir4String[dIdx])
-				}
-			}
-		case charDruid:
-			p0 := d.druid
-			for dIdx, dir := range directions4 {
-				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-				// todo 目前只实现了草 <-> 石头的逻辑
-				// 草变石
-				if i := slices.Index(d.grass[:], newP); i >= 0 {
-					newData := d
-					newData.stones[:][0] = newData.grass[i] // 加个切片避免报错
-					newData.grass[i] = noPos
-					add(d, newData, dir4String[dIdx]) // trans
-					continue
-				}
-
-				// 石变草
-				if !druidOnlyToStone {
-					if i := slices.Index(d.stones[:], newP); i >= 0 {
-						newData := d
-						newData.grass[:][0] = newData.stones[i]
-						newData.stones[i] = noPos
-						add(d, newData, dir4String[dIdx]) // trans
-						continue
-					}
-				}
-
-				// 普通移动一步
-				if !d.isValidPos(newP) || slices.Contains(allMovableObjs, newP) {
-					continue
-				}
-				newData := d
-				newData.druid = newP
-				add(d, newData, dir4String[dIdx]) // move
-			}
-		case charExplorer:
-			// 普通移动一步
-			p0 := d.explorer
-			for dIdx, dir := range directions4 {
-				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-				if !d.isValidPos(newP) {
-					if mapSizeH > 1 {
-						// 如果头上有喷火龙或者镜子，修改其朝向
-						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
-							newData := d
-							newData.dragons[i].dir = uint8(dIdx)
-							add(d, newData, dir4String[dIdx])
-						}
-						// todo 镜子
-					}
-					continue // 枚举另一个方向
-				}
-
-				newData := d
-				if allowExplorerPushItem {
-					if i := slices.Index(allMovableObjs, newP); i >= 0 {
-						// 推物品
-						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
-						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
-							continue // 枚举另一个方向
-						}
-						newData.changePos(newP, nxt2, math.MaxUint8)
-					}
-				}
-
-				newData.explorer = newP
-				if mapSizeH > 1 {
-					oldTop := point{p0.x, p0.y, p0.z + 1}
-					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
-					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
-						newTop := newP
-						newTop.z++
-						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
-							continue // todo 暂时禁止喷火龙落地 
-						}
-						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
-					} else if slices.Contains(allMovableObjs, oldTop) {
-						newTop := newP
-						newTop.z++
-						newData.changePos(oldTop, newTop, uint8(dIdx))
-					}
-					// todo 镜子
-				}
-				add(d, newData, dir4String[dIdx])
-			}
-		case charSailor:
-			// 普通移动一步
-			p0 := d.sailor
-			for dIdx, dir := range directions4 {
-				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-				if !d.isValidPos(newP) {
-					if mapSizeH > 1 {
-						// 如果头上有喷火龙或者镜子，修改其朝向
-						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
-							newData := d
-							newData.dragons[i].dir = uint8(dIdx)
-							add(d, newData, dir4String[dIdx])
-						}
-						// todo 镜子
-					}
-					continue // 枚举另一个方向
-				}
-
-				newData := d
-				if allowPushItem {
-					if i := slices.Index(allMovableObjs, newP); i >= 0 {
-						// 推物品
-						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
-						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
-							continue // 枚举另一个方向
-						}
-						newData.changePos(newP, nxt2, math.MaxUint8)
-					}
-				}
-
-				newData.sailor = newP
-				if mapSizeH > 1 {
-					oldTop := point{p0.x, p0.y, p0.z + 1}
-					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
-					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
-						newTop := newP
-						newTop.z++
-						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
-							continue // todo 暂时禁止喷火龙落地 
-						}
-						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
-					} else if slices.Contains(allMovableObjs, oldTop) {
-						newTop := newP
-						newTop.z++
-						newData.changePos(oldTop, newTop, uint8(dIdx))
-					}
-					// todo 镜子
-				}
-				add(d, newData, dir4String[dIdx])
-			}
-		case charMerchant:
-			// 多控
-			// 普通移动一步
-			for dIdx, dir := range directions4 {
-				newData := d
-				oldMerchant := newData.merchant
-				man := newData.merchant[:]
-				slices.SortFunc(man, func(a, b point) int {
-					if dir.x != 0 {
-						return int(b.x*dir.x - a.x*dir.x)
-					}
-					return int(b.y*dir.y - a.y*dir.y)
-				})
-
-				unmovedMan := []point{}
-				moved := false
-				for manIdx, p0 := range man {
-					if p0 == noPos {
-						continue
-					}
-					nxt := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
-					// 无法移动（注意岸边也是无法移动的）
-					if !d.isValidPos(nxt) || d.isFallIntoWater(nxt) || slices.Contains(unmovedMan, nxt) {
-						unmovedMan = append(unmovedMan, p0)
-						continue
-					}
-					// 如果前面是物品，则推动（能移动的人已经移动了）
-					if !slices.Contains(oldMerchant[:], nxt) && slices.Contains(allMovableObjs, nxt) {
-						nxt2 := point{nxt.x + dir.x, nxt.y + dir.y, nxt.z + dir.z}
-						// 无法推动前面的物品
-						if !d.isValidPos(nxt2) ||
-							!slices.Contains(oldMerchant[:], nxt2) && slices.Contains(allMovableObjs, nxt2) ||
-							slices.Contains(unmovedMan, nxt2) {
-							unmovedMan = append(unmovedMan, p0)
-							continue
-						}
-						newData.changePos(nxt, nxt2, math.MaxUint8)
-					}
-					moved = true
-					man[manIdx] = nxt // 移走！
-				}
-				if !moved { // 没人动
-					continue
-				}
-				add(d, newData, dir4String[dIdx])
-			}
-		}
-
-		// 换成其他人
-		for _, char := range validChars {
-			if char != d.curChar {
-				newData := d
-				newData.curChar = char
-				var info string
-				if len(allChars) > 2 {
-					info = digits[char : char+1]
-				} else {
-					info = "c"
-				}
-				add(d, newData, info)
-			}
-		}
-
-		// 镜子反射对象
+		// 先考虑按 x 镜子反射对象，这样后面移动更流畅
 		doMirrors := func() {
 			newData := d
 			swapped := uint(0)
@@ -1518,6 +1203,443 @@ func solveLevel() []string {
 			add(d, newData, "x")
 		}
 		doMirrors()
+
+		// 移动当前角色
+		switch d.curCharTypeNum {
+		case charDefault:
+			panic("代码有误，当前角色不能为 charDefault")
+		case charWarrior:
+			// 普通移动一步
+			p0 := d.warrior
+			for dIdx, dir := range directions4 {
+				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
+				// 该方向有多少个连续的对象
+				cnt := 0
+				cur := point{x, y, z}
+				for slices.Contains(allMovableObjs, cur) {
+					cnt++
+					cur.x += dir.x
+					cur.y += dir.y
+					cur.z += dir.z
+				}
+				// 前面是否有空地
+				if !d.isValidPos(cur) {
+					continue // 枚举另一个方向
+				}
+
+				newData := d
+				for range cnt {
+					nxt := point{cur.x - dir.x, cur.y - dir.y, cur.z - dir.z}
+					newData.changePos(nxt, cur, math.MaxUint8)
+					cur = nxt
+				}
+				np := point{x, y, z}
+				newData.warrior = np
+				add(d, newData, dir4String[dIdx])
+			}
+		case charThief:
+			// 普通移动一步
+			p0 := d.thief
+			for dIdx, dir := range directions4 {
+				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
+				np := point{x, y, z}
+				if !d.isValidPos(np) || slices.Contains(allMovableObjs, np) {
+					continue // 枚举另一个方向
+				}
+				newData := d
+				back := point{p0.x - dir.x, p0.y - dir.y, p0.z - dir.z}
+				if slices.Contains(allMovableObjs, back) {
+					// 拉人/物 -> 当前位置
+					newData.changePos(back, p0, math.MaxUint8)
+				}
+				newData.thief = np
+				add(d, newData, dir4String[dIdx])
+			}
+		case charWizard:
+			p0 := d.wizard
+		nextDir:
+			for dIdx, dir := range directions4 {
+				// dir 方向是否有可交换对象
+				x, y, z := p0.x, p0.y, p0.z
+				for {
+					x += dir.x
+					y += dir.y
+					z += dir.z
+					newP := point{x, y, z}
+					if !d.isValidPos(newP) {
+						break // 出界或者有障碍物
+					}
+					if !slices.Contains(allMovableObjs, newP) {
+						continue // 空地
+					}
+
+					mir := noPosDir
+					if i := pdIndex(d.mirrors[:], newP); i >= 0 && d.mirrors[i].canReflect(dir) {
+						mir = d.mirrors[i]
+					} else if i := pdIndex(d.mirrorRefs[:], newP); i >= 0 && d.mirrorRefs[i].canReflect(dir) {
+						mir = d.mirrorRefs[i]
+					} else if i := pdIndex(d.mirrorAuxes[:], newP); i >= 0 && d.mirrorAuxes[i].canReflect(dir) {
+						mir = d.mirrorAuxes[i]
+					}
+
+					// 面对的是镜子的正面
+					if mir.point != noPos {
+						dir2 := mir.reflectToAnotherDir(dir)
+						// 沿着光路搜索，找第一个可交换对象
+						newP = d.reflectTo(mir, dir2, math.MaxInt, allMovableObjs)
+						if newP == noPos {
+							break // 镜子反射路径没有任何对象，只能普通移动一步
+						}
+					}
+
+					// 和对象交换位置
+					newData := d
+					newData.changePos(newP, p0, math.MaxUint8) // newP 换到 p0
+					newData.wizard = newP                      // 法师换到 newP
+					add(d, newData, dir4String[dIdx]+"P")      // swap
+					continue nextDir
+				}
+
+				// 没有可交换对象，那就普通移动一步
+				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+				if !d.isValidPos(newP) || slices.Contains(allMovableObjs, newP) {
+					continue // 枚举另一个方向
+				}
+				newData := d
+				newData.wizard = newP
+				add(d, newData, dir4String[dIdx]) // move
+			}
+		case charCleric:
+			// 普通移动一步
+			p0 := d.cleric
+			withinBeams := d.withinBeams(p0, allMovableObjs)
+			for dIdx, dir := range directions4 {
+				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+				if !d.isValidPos(newP) {
+					continue // 枚举另一个方向
+				}
+				newData := d
+				if i := slices.Index(allMovableObjs, newP); i >= 0 {
+					if withinBeams>>beamPush&1 == 0 {
+						continue // 枚举另一个方向
+					}
+					if allowPushItem {
+						// 可以推物品
+						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
+						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
+							continue // 枚举另一个方向
+						}
+						newData.changePos(newP, nxt2, math.MaxUint8)
+					}
+				}
+				newData.cleric = newP
+				add(d, newData, dir4String[dIdx])
+			}
+		case charBard:
+			p0 := d.bard
+			items := []point{}
+			for _, p := range allMovableObjs {
+				if chebyshevDis(p, p0) <= 2 {
+					items = append(items, p)
+				}
+			}
+
+			// 普通移动一步
+			// 切比雪夫距离 <= 2 的物品（包括自己）都移动一步
+			for dIdx, dir := range directions4 {
+				x, y, z := p0.x+dir.x, p0.y+dir.y, p0.z+dir.z
+				if !d.isValidPos(point{x, y, z}) {
+					continue
+				}
+				slices.SortFunc(items, func(a, b point) int {
+					if dir.x != 0 {
+						return int(b.x*dir.x - a.x*dir.x)
+					}
+					return int(b.y*dir.y - a.y*dir.y)
+				})
+
+				newData := d
+				unmovedItems := []point{}
+				movedItems := []point{}
+				for _, oldP := range items {
+					// item 往前移动一格
+					newP := point{oldP.x + dir.x, oldP.y + dir.y, oldP.z + dir.z}
+					if !d.isValidPos(newP) { // 无法移动
+						unmovedItems = append(unmovedItems, oldP)
+						continue
+					}
+					// 尝试移动
+					if chebyshevDis(newP, p0) > 2 { // item 是力场最前面的点
+						if slices.Contains(allMovableObjs, newP) { // 不能与力场外的对象碰撞
+							unmovedItems = append(unmovedItems, oldP)
+							continue
+						}
+					} else if slices.Contains(unmovedItems, newP) { // 力场后面的点，不能与前面移动失败的对象碰撞
+						unmovedItems = append(unmovedItems, oldP)
+						continue
+					}
+					movedItems = append(movedItems, oldP)
+					newData.changePos(oldP, newP, math.MaxUint8)
+				}
+
+				if !slices.Contains(unmovedItems, p0) {
+					if newData.bard != (point{x, y, z}) {
+						panic("移动错误，代码有误")
+					}
+
+					// 特性：如果诗人脚下是物品，且该物品移动了，那么诗人可以再走一格
+					if slices.Contains(movedItems, point{p0.x, p0.y, p0.z - 1}) {
+						nxtP := point{x + dir.x, y + dir.y, z + dir.z}
+						if d.isValidPos(nxtP) && !slices.Contains(unmovedItems, nxtP) {
+							newData.bard = nxtP
+						}
+						// todo （待确认）如果 z-2 也移动了，那么再再走一格
+					}
+
+					add(d, newData, dir4String[dIdx])
+				}
+			}
+		case charDruid:
+			p0 := d.druid
+			for dIdx, dir := range directions4 {
+				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+				// 草变石
+				if i := slices.Index(d.grass[:], newP); i >= 0 {
+					newData := d
+					newData.stones[:][0] = newData.grass[i] // 加个切片避免报错
+					newData.grass[i] = noPos
+					add(d, newData, dir4String[dIdx]+"C") // trans
+					continue
+				}
+
+				// 石变草
+				if !druidOnlyGrassToStone {
+					if i := slices.Index(d.stones[:], newP); i >= 0 {
+						newData := d
+						newData.grass[:][0] = newData.stones[i]
+						newData.stones[i] = noPos
+						add(d, newData, dir4String[dIdx]+"C") // trans
+						continue
+					}
+				}
+
+				// todo 在有牧师的情况下，哥布林切换
+				//if i := pdIndex(d.goblins[:], newP); i >= 0 {
+				//	newData := d
+				//	newData.goblins[i].dir ^= dirStoneDelta
+				//	add(d, newData, dir4String[dIdx]+"C") // trans
+				//	continue
+				//}
+
+				// 喷火龙切换
+				if i := pdIndex(d.dragons[:], newP); i >= 0 {
+					newData := d
+					newData.dragons[i].dir ^= dirStoneDelta
+					add(d, newData, dir4String[dIdx]+"C") // trans
+					continue
+				}
+
+				// 普通移动一步
+				if !d.isValidPos(newP) || slices.Contains(allMovableObjs, newP) {
+					continue
+				}
+				newData := d
+				newData.druid = newP
+				add(d, newData, dir4String[dIdx]) // move
+			}
+		case charExplorer:
+			// 普通移动一步
+			p0 := d.explorer
+			for dIdx, dir := range directions4 {
+				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+				if !d.isValidPos(newP) {
+					if mapSizeH > 1 {
+						// 如果头上有喷火龙或者镜子，修改其朝向
+						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
+							newData := d
+							newData.dragons[i].dir &^= 7
+							newData.dragons[i].dir |= uint8(dIdx)
+							add(d, newData, dir4String[dIdx])
+						}
+						// todo 镜子
+					}
+					continue // 枚举另一个方向
+				}
+
+				newData := d
+				if allowExplorerPushItem {
+					if i := slices.Index(allMovableObjs, newP); i >= 0 {
+						// 推物品
+						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
+						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
+							continue // 枚举另一个方向
+						}
+						newData.changePos(newP, nxt2, math.MaxUint8)
+					}
+				}
+
+				newData.explorer = newP
+				if mapSizeH > 1 {
+					oldTop := point{p0.x, p0.y, p0.z + 1}
+					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
+					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
+						newTop := newP
+						newTop.z++
+						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
+							continue // todo 暂时禁止喷火龙落地 
+						}
+						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
+					} else if slices.Contains(allMovableObjs, oldTop) {
+						newTop := newP
+						newTop.z++
+						newData.changePos(oldTop, newTop, uint8(dIdx))
+					}
+					// todo 镜子
+				}
+				add(d, newData, dir4String[dIdx])
+			}
+		case charSailor:
+			// 普通移动一步
+			p0 := d.sailor
+			for dIdx, dir := range directions4 {
+				newP := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+				if !d.isValidPos(newP) {
+					if mapSizeH > 1 {
+						// 如果头上有喷火龙或者镜子，修改其朝向
+						if i := pdIndex(d.dragons[:], point{p0.x, p0.y, p0.z + 1}); i >= 0 {
+							newData := d
+							newData.dragons[i].dir &^= 7
+							newData.dragons[i].dir |= uint8(dIdx)
+							add(d, newData, dir4String[dIdx])
+						}
+						// todo 镜子
+					}
+					continue // 枚举另一个方向
+				}
+
+				newData := d
+				if allowPushItem {
+					if i := slices.Index(allMovableObjs, newP); i >= 0 {
+						// 推物品
+						nxt2 := point{newP.x + dir.x, newP.y + dir.y, newP.z + dir.z}
+						if !d.isValidPos(nxt2) || slices.Contains(allMovableObjs, nxt2) {
+							continue // 枚举另一个方向
+						}
+						newData.changePos(newP, nxt2, math.MaxUint8)
+					}
+				}
+
+				newData.sailor = newP
+				if mapSizeH > 1 {
+					oldTop := point{p0.x, p0.y, p0.z + 1}
+					// 如果原位置头上有喷火龙或者镜子，修改其位置和朝向
+					if i := pdIndex(newData.dragons[:], oldTop); i >= 0 {
+						newTop := newP
+						newTop.z++
+						if !d.isValidPos(newTop) || slices.Contains(allMovableObjs, newTop) {
+							continue // todo 暂时禁止喷火龙落地 
+						}
+						newData.dragons[i] = pointWithDir{newTop, uint8(dIdx)}
+					} else if slices.Contains(allMovableObjs, oldTop) {
+						newTop := newP
+						newTop.z++
+						newData.changePos(oldTop, newTop, uint8(dIdx))
+					}
+					// todo 镜子
+				}
+				add(d, newData, dir4String[dIdx])
+			}
+		case charMerchant:
+			// 多控
+			// 普通移动一步
+			for dIdx, dir := range directions4 {
+				newData := d
+				oldMerchant := newData.merchant
+				man := newData.merchant[:]
+				slices.SortFunc(man, func(a, b point) int {
+					if dir.x != 0 {
+						return int(b.x*dir.x - a.x*dir.x)
+					}
+					return int(b.y*dir.y - a.y*dir.y)
+				})
+
+				unmovedMan := []point{}
+				moved := false
+				for manIdx, p0 := range man {
+					if p0 == noPos {
+						continue
+					}
+					nxt := point{p0.x + dir.x, p0.y + dir.y, p0.z + dir.z}
+					// 无法移动（注意岸边也是无法移动的）
+					if !d.isValidPos(nxt) || d.isFallIntoWater(nxt) || slices.Contains(unmovedMan, nxt) {
+						unmovedMan = append(unmovedMan, p0)
+						continue
+					}
+					// 如果前面是物品，则推动（能移动的人已经移动了）
+					if !slices.Contains(oldMerchant[:], nxt) && slices.Contains(allMovableObjs, nxt) {
+						nxt2 := point{nxt.x + dir.x, nxt.y + dir.y, nxt.z + dir.z}
+						// 无法推动前面的物品
+						if !d.isValidPos(nxt2) ||
+							!slices.Contains(oldMerchant[:], nxt2) && slices.Contains(allMovableObjs, nxt2) ||
+							slices.Contains(unmovedMan, nxt2) {
+							unmovedMan = append(unmovedMan, p0)
+							continue
+						}
+						newData.changePos(nxt, nxt2, math.MaxUint8)
+					}
+					moved = true
+					man[manIdx] = nxt // 移走！
+				}
+				if !moved { // 没人动
+					continue
+				}
+				add(d, newData, dir4String[dIdx])
+			}
+		default:
+			// 跳石
+			oriChar := d.curCharTypeNum - skippingStoneDelta
+			_ = oriChar
+
+		}
+
+		// 换成其他人
+		if isBigMap {
+			p := d.getCurCharTypePos()
+			ch := levelMap[0][p.x][p.y]
+			if ch != charNumToName[d.curCharTypeNum] {
+				if i := strings.IndexByte("ATWCDB789", ch); i >= 0 {
+					newData := d
+					// 复原所有角色位置
+					newData.warrior = __warrior
+					newData.thief = __thief
+					newData.wizard = __wizard
+					newData.cleric = __cleric
+					newData.druid = __druid
+					newData.bard = __bard
+					newData.explorer = __explorer
+					newData.sailor = __sailor
+					newData.curCharTypeNum = int8(i + 1)
+					add(d, newData, "IGNORE")
+				}
+			}
+		} else {
+			for _, char := range validChars {
+				if char != d.curCharTypeNum {
+					newData := d
+					newData.curCharTypeNum = char
+					var info string
+					if len(allChars) > 2 {
+						info = digits[char : char+1]
+					} else {
+						info = "c"
+					}
+					if d.curCharTypeNum == charBard {
+						info = "B" + info // 等一下再换人
+					}
+					add(d, newData, info)
+				}
+			}
+		}
 	}
 
 	// 无解
@@ -1539,6 +1661,23 @@ const (
 	charMerchant // Trader
 )
 
+var charNumToName = [...]byte{
+	charWarrior:  'A',
+	charThief:    'T',
+	charWizard:   'W',
+	charCleric:   'C',
+	charBard:     'B',
+	charDruid:    'D',
+	charExplorer: '7',
+	charSailor:   '8',
+	charMerchant: '9',
+}
+
+// 跳石，无法操纵，只能原地等待
+// 当跳石被推动后，额外进入该角色
+// 当跳石停止移动后，换回原来的角色（用 skippingStoneDelta + 原来的角色编号表示跳石的情况）
+const skippingStoneDelta = 1 << 6
+
 const (
 	beamDefault   = iota
 	beamOpen      // 红
@@ -1548,3 +1687,5 @@ const (
 	beamPush      // 青
 	beamTeleport  // 紫
 )
+
+const dirStoneDelta = 1 << 6
