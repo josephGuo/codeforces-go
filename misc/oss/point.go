@@ -10,6 +10,7 @@ var rawDir = [...]struct {
 	dirZH string
 	dirEN string
 }{
+	// 由于屏幕是列数更多，所以更多的是左右移动，要左右移动优先
 	{point{0, -1, 0}, "左", "a"},
 	{point{0, 1, 0}, "右", "d"},
 	{point{-1, 0, 0}, "上", "w"},
