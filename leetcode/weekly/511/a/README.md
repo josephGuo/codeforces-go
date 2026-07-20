@@ -1,36 +1,27 @@
-如果 $n=1$，序列为 $[s]$，最大值为 $s$。
+马走一步后，马所在的格子颜色会变化。再走一步，格子颜色变回一开始马所在的格子颜色。
 
-如果 $n=2$，由于题目保证 $m > 0$，那么最优交替序列为 $[s,s+m]$，最大值为 $s+m$。
+一般地，马走奇数步，格子颜色会变；**走偶数步，格子颜色不变**。
 
-如果 $n\ge 3$，比较可知先递增（相比先递减）仍然更优。在 $[s,s+m]$ 的基础上：
+所以 $\textit{start}$ 和 $\textit{target}$ 的格子颜色必须相同。
 
-- 下一个数必须比 $s+m$ 小，那么小 $1$ 即可，为 $s+m-1$。
-- 下下一个数最大可以比 $s+m-1$ 大 $m$，为了让最大值尽量大，下下一个数为 $s+2m-1$ 最优。
-- 依此类推，从 $n=2$ 开始，$n$ 每增加 $2$，最大值就增加 $m-1$。所以当 $n\ge 3$ 时，最大值为
-  
-  $$
-  s+m+(m-1)\cdot \left\lfloor\dfrac{n-2}{2}\right\rfloor
-  $$
+![lc511a.png](https://pic.leetcode.cn/1784430285-BoJCle-lc511a.png){:width=250px}
 
-注意上式兼容 $n=2$ 的情况。
+马走两步，可以走到曼哈顿距离为 $2$ 的同色格子（马周围一圈的任意同色格子）。马走偶数步，可以走到棋盘的任意同色格子。所以只要 $\textit{start}$ 和 $\textit{target}$ 的格子颜色相同，就可以从 $\textit{start}$ 走到 $\textit{target}$。
 
-[本题视频讲解](https://www.bilibili.com/video/BV1mJK66VEbN/?t=3m)，欢迎点赞关注~
+如何计算格子的颜色？对于格子 $(x,y)$，$x+y$ 相同的格子，都在同一条斜线上，颜色相同。由于 $x+y$ 每增加 $1$，格子颜色切换，所以可以用 $(x+y)\bmod 2$ 区分格子的颜色。
+
+[本题视频讲解](https://www.bilibili.com/video/BV1xpK663Eqh/?t=43m57s)，欢迎点赞关注~
 
 ```py [sol-Python3]
 class Solution:
-    def maximumValue(self, n: int, s: int, m: int) -> int:
-        if n == 1:
-            return s
-        return s + m + (m - 1) * (n // 2 - 1)
+    def canReach(self, start: list[int], target: list[int]) -> bool:
+        return (start[0] + start[1]) % 2 == (target[0] + target[1]) % 2
 ```
 
 ```java [sol-Java]
 class Solution {
-    public long maximumValue(int n, int s, int m) {
-        if (n == 1) {
-            return s;
-        }
-        return s + m + (m - 1) * (n / 2 - 1);
+    public boolean canReach(int[] start, int[] target) {
+        return (start[0] + start[1]) % 2 == (target[0] + target[1]) % 2;
     }
 }
 ```
@@ -38,21 +29,15 @@ class Solution {
 ```cpp [sol-C++]
 class Solution {
 public:
-    long long maximumValue(int n, int s, int m) {
-        if (n == 1) {
-            return s;
-        }
-        return s + m + 1LL * (m - 1) * (n / 2 - 1);
+    bool canReach(vector<int>& start, vector<int>& target) {
+        return (start[0] + start[1]) % 2 == (target[0] + target[1]) % 2;
     }
 };
 ```
 
 ```go [sol-Go]
-func maximumValue(n, s, m int) int64 {
-	if n == 1 {
-		return int64(s)
-	}
-	return int64(s + m + (m-1)*(n/2-1))
+func canReach(start, target []int) bool {
+	return (start[0]+start[1])%2 == (target[0]+target[1])%2
 }
 ```
 

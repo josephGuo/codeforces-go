@@ -11,16 +11,19 @@
 
 - 不替换，前提是 $\textit{source}[i] = \textit{target}[i]$。问题变成把 $\textit{source}$ 的子串 $[0,i-1]$ 变成 $\textit{target}$ 的子串 $[0,i-1]$ 的最小总成本，即 $\textit{dfs}(i-1)$。
 - 替换，枚举替换规则。设 $\textit{pattern}$ 的长度为 $m$，如果 $\textit{pattern}$ 匹配 $\textit{source}$ 的子串 $[i-m+1,i]$，且 $\textit{replacement}$ 等于 $\textit{target}$ 的子串 $[i-m+1,i]$，那么问题变成把 $\textit{source}$ 的 $[0,i-m]$ 变成 $\textit{target}$ 的 $[0,i-m]$ 的最小总成本，即 $\textit{dfs}(i-m)$，再加上替换的成本，更新 $\textit{dfs}(i)$ 的最小值。
+- 如果 $\textit{source}[i] \ne \textit{target}[i]$ 且无任何规则可以匹配，则 $\textit{dfs}(i) = \infty$。
 
 **递归边界**：$\textit{dfs}(-1)=0$。此时剩余子串是空串，无需替换，成本为 $0$。
 
 **递归入口**：$\textit{dfs}(n-1)$，这是原问题，也是答案。
 
-下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
+[本题视频讲解](https://www.bilibili.com/video/BV1mJK66VEbN/?t=12m30s)，欢迎点赞关注~
 
 ## 写法一：记忆化搜索
 
 关于记忆化搜索的原理，请看视频讲解 [动态规划入门：从记忆化搜索到递推【基础算法精讲 17】](https://www.bilibili.com/video/BV1Xj411K7oF/)，其中包含把记忆化搜索 1:1 翻译成递推的技巧。
+
+**注**：题目没有保证 $\textit{source}$ 和 $\textit{target}$ 长度相等，我估计是出题人漏写了（试了一下，没有长度不等的数据）。
 
 ```py [sol-Python3]
 class Solution:
@@ -242,7 +245,7 @@ func minCost(source, target string, rules [][]string, costs []int) int {
 }
 ```
 
-## 写法二：1:1 翻译成递推
+## 写法二：倒序 DP（查表法）
 
 $f[i+1]$ 对应 $\textit{dfs}(i)$。
 
@@ -422,9 +425,211 @@ func minCost(source, target string, rules [][]string, costs []int) int {
 		f[i+1] = res
 	}
 
-	ans := f[n]
-	if ans < math.MaxInt/2 {
-		return ans
+	if f[n] < math.MaxInt/2 {
+		return f[n]
+	}
+	return -1
+}
+```
+
+## 写法三：正序 DP（刷表法）
+
+状态定义不变。
+
+改成用 $f[i]$ 去更新右边的状态。
+
+这个写法的好处是，如果 $f[i]=\infty$（从未被更新过），那么不需要用 $f[i]$ 更新右边的状态。
+
+```py [sol-Python3]
+class Solution:
+    def minCost(self, source: str, target: str, rules: list[list[str]], costs: list[int]) -> int:
+        # 把成本加上 '*' 的个数，这样在 DP 中无需反复统计 '*' 的个数
+        for i, rule in enumerate(rules):
+            costs[i] += rule[0].count('*')
+
+        # pattern 是否匹配 s[left: left+len(pattern)]
+        def is_match(pattern: str, s: str, left: int) -> bool:
+            for j, ch in enumerate(pattern):
+                if ch != '*' and ch != s[left + j]:
+                    return False
+            return True
+
+        n = len(source)
+        f = [0] + [inf] * n
+
+        for i in range(n):
+            if f[i] == inf:
+                continue
+
+            # 不替换下标 i
+            if source[i] == target[i]:
+                f[i + 1] = min(f[i + 1], f[i])
+
+            # 替换子串 [i, i+len(pattern)-1]
+            for (pattern, replacement), cost in zip(rules, costs):
+                r = i + len(pattern)
+                if r <= n and f[i] + cost < f[r] and replacement == target[i:r] and is_match(pattern, source, i):
+                    f[r] = f[i] + cost
+
+        return f[n] if f[n] < inf else -1
+```
+
+```java [sol-Java]
+class Solution {
+    public int minCost(String s, String t, List<List<String>> Rules, int[] costs) {
+        List<String>[] rules = Rules.toArray(List[]::new); // 转成数组更方便
+
+        // 先加上 '*' 的个数，这样在 DP 中无需统计 '*' 的个数
+        for (int i = 0; i < rules.length; i++) {
+            costs[i] += count(rules[i].get(0), '*');
+        }
+
+        int n = s.length();
+        int[] f = new int[n + 1];
+        Arrays.fill(f, Integer.MAX_VALUE);
+        f[0] = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (f[i] == Integer.MAX_VALUE) {
+                continue;
+            }
+
+            // 不替换下标 i
+            if (s.charAt(i) == t.charAt(i)) {
+                f[i + 1] = Math.min(f[i + 1], f[i]);
+            }
+
+            // 替换子串 [i, i+replacement.length()-1]
+            for (int k = 0; k < rules.length; k++) {
+                String replacement = rules[k].get(1);
+                int r = i + replacement.length();
+                if (r <= n && f[i] + costs[k] < f[r] && replacement.equals(t.substring(i, r)) && isMatch(rules[k].get(0), s, i)) {
+                    f[r] = f[i] + costs[k];
+                }
+            }
+        }
+
+        return f[n] < Integer.MAX_VALUE ? f[n] : -1;
+    }
+
+    // pattern 是否匹配 s 的子串 [start, left+pattern.length()-1]
+    private boolean isMatch(String pattern, String s, int left) {
+        for (int j = 0; j < pattern.length(); j++) {
+            char ch = pattern.charAt(j);
+            if (ch != '*' && ch != s.charAt(left + j)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int count(String s, char target) {
+        int cnt = 0;
+        for (char ch : s.toCharArray()) {
+            if (ch == target) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
+}
+```
+
+```cpp [sol-C++]
+class Solution {
+    bool is_match(const string& pattern, const string_view& s) {
+        for (int j = 0; j < pattern.size(); j++) {
+            if (pattern[j] != '*' && pattern[j] != s[j]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+public:
+    int minCost(string source, string target, vector<vector<string>>& rules, vector<int>& costs) {
+        // 把成本加上 '*' 的个数，这样在 DP 中无需反复统计 '*' 的个数
+        for (int i = 0; i < rules.size(); i++) {
+            costs[i] += ranges::count(rules[i][0], '*');
+        }
+
+        string_view s(source); // string_view 的 substr 是 O(1) 的时间和空间
+        string_view t(target);
+
+        int n = s.size();
+        vector<int> f(n + 1, INT_MAX);
+        f[0] = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (f[i] == INT_MAX) {
+                continue;
+            }
+
+            // 不替换下标 i
+            if (s[i] == t[i]) {
+                f[i + 1] = min(f[i + 1], f[i]);
+            }
+
+            // 替换子串 [i, i+m-1]
+            for (int k = 0; k < rules.size(); k++) {
+                auto& replacement = rules[k][1];
+                int m = replacement.size();
+                int r = i + m;
+                if (r <= n && f[i] + costs[k] < f[r] && replacement == t.substr(i, m) && is_match(rules[k][0], s.substr(i))) {
+                    f[r] = f[i] + costs[k];
+                }
+            }
+        }
+
+        return f[n] < INT_MAX ? f[n] : -1;
+    }
+};
+```
+
+```go [sol-Go]
+func minCost(source, target string, rules [][]string, costs []int) int {
+	// 把成本加上 '*' 的个数，这样在 DP 中无需反复统计 '*' 的个数
+	for i, rule := range rules {
+		costs[i] += strings.Count(rule[0], "*")
+	}
+
+	isMatch := func(pattern, s string) bool {
+		for j, ch := range pattern {
+			if ch != '*' && byte(ch) != s[j] {
+				return false
+			}
+		}
+		return true
+	}
+
+	n := len(source)
+	f := make([]int, n+1)
+	for i := 1; i <= n; i++ {
+		f[i] = math.MaxInt
+	}
+
+	for i := range n {
+		if f[i] == math.MaxInt {
+			continue
+		}
+
+		// 不替换下标 i
+		if source[i] == target[i] {
+			f[i+1] = min(f[i+1], f[i])
+		}
+
+		// 替换子串 [i, i+len(replacement)-1]
+		for k, rule := range rules {
+			replacement := rule[1]
+			r := i + len(replacement)
+			if r <= n && f[i]+costs[k] < f[r] && replacement == target[i:r] && isMatch(rule[0], source[i:]) {
+				f[r] = f[i] + costs[k]
+			}
+		}
+	}
+
+	if f[n] < math.MaxInt {
+		return f[n]
 	}
 	return -1
 }

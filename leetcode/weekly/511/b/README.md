@@ -1,36 +1,47 @@
-如果 $n=1$，序列为 $[s]$，最大值为 $s$。
+写一个自底向上的 DFS，递归函数返回当前子树的最大节点值。
 
-如果 $n=2$，由于题目保证 $m > 0$，那么最优交替序列为 $[s,s+m]$，最大值为 $s+m$。
-
-如果 $n\ge 3$，比较可知先递增（相比先递减）仍然更优。在 $[s,s+m]$ 的基础上：
-
-- 下一个数必须比 $s+m$ 小，那么小 $1$ 即可，为 $s+m-1$。
-- 下下一个数最大可以比 $s+m-1$ 大 $m$，为了让最大值尽量大，下下一个数为 $s+2m-1$ 最优。
-- 依此类推，从 $n=2$ 开始，$n$ 每增加 $2$，最大值就增加 $m-1$。所以当 $n\ge 3$ 时，最大值为
-  
-  $$
-  s+m+(m-1)\cdot \left\lfloor\dfrac{n-2}{2}\right\rfloor
-  $$
-
-注意上式兼容 $n=2$ 的情况。
-
-[本题视频讲解](https://www.bilibili.com/video/BV1mJK66VEbN/?t=3m)，欢迎点赞关注~
+如果当前节点值等于当前子树的最大节点值，那么答案加一。
 
 ```py [sol-Python3]
 class Solution:
-    def maximumValue(self, n: int, s: int, m: int) -> int:
-        if n == 1:
-            return s
-        return s + m + (m - 1) * (n // 2 - 1)
+    def countDominantNodes(self, root: TreeNode | None) -> int:
+        # dfs(node) 返回 node 子树中的最大节点值
+        def dfs(node: TreeNode | None) -> int:
+            if node is None:
+                return 0
+            mx = max(dfs(node.left), dfs(node.right), node.val)
+            if node.val == mx:
+                # node.val 是 node 子树中的最大节点值
+                nonlocal ans
+                ans += 1
+            return mx
+
+        ans = 0
+        dfs(root)
+        return ans
 ```
 
 ```java [sol-Java]
 class Solution {
-    public long maximumValue(int n, int s, int m) {
-        if (n == 1) {
-            return s;
+    private int ans = 0;
+
+    public int countDominantNodes(TreeNode root) {
+        dfs(root);
+        return ans;
+    }
+
+    // dfs(node) 返回 node 子树中的最大节点值
+    private int dfs(TreeNode node) {
+        if (node == null) {
+            return 0;
         }
-        return s + m + (m - 1) * (n / 2 - 1);
+        int mx = Math.max(dfs(node.left), dfs(node.right));
+        if (node.val >= mx) {
+            // node.val 是 node 子树中的最大节点值
+            ans++;
+            mx = node.val;
+        }
+        return mx;
     }
 }
 ```
@@ -38,28 +49,59 @@ class Solution {
 ```cpp [sol-C++]
 class Solution {
 public:
-    long long maximumValue(int n, int s, int m) {
-        if (n == 1) {
-            return s;
-        }
-        return s + m + 1LL * (m - 1) * (n / 2 - 1);
+    int countDominantNodes(TreeNode* root) {
+        int ans = 0;
+
+        // dfs(node) 返回 node 子树中的最大节点值
+        auto dfs = [&](this auto&& dfs, TreeNode* node) -> int {
+            if (node == nullptr) {
+                return 0;
+            }
+            int mx = max(dfs(node->left), dfs(node->right));
+            if (node->val >= mx) {
+                // node->val 是 node 子树中的最大节点值
+                ans++;
+                mx = node->val;
+            }
+            return mx;
+        };
+
+        dfs(root);
+        return ans;
     }
 };
 ```
 
 ```go [sol-Go]
-func maximumValue(n, s, m int) int64 {
-	if n == 1 {
-		return int64(s)
+func countDominantNodes(root *TreeNode) (ans int) {
+	// dfs(node) 返回 node 子树中的最大节点值
+	var dfs func(*TreeNode) int
+	dfs = func(node *TreeNode) int {
+		if node == nil {
+			return 0
+		}
+		mx := max(dfs(node.Left), dfs(node.Right))
+		if node.Val >= mx {
+			// node.Val 是 node 子树中的最大节点值
+			ans++
+			mx = node.Val
+		}
+		return mx
 	}
-	return int64(s + m + (m-1)*(n/2-1))
+
+	dfs(root)
+	return
 }
 ```
 
 #### 复杂度分析
 
-- 时间复杂度：$\mathcal{O}(1)$。
-- 空间复杂度：$\mathcal{O}(1)$。
+- 时间复杂度：$\mathcal{O}(n)$，其中 $n$ 是二叉树的节点个数。
+- 空间复杂度：$\mathcal{O}(\log n)$。题目保证二叉树是完全二叉树，深度为 $\mathcal{O}(\log n)$，递归需要 $\mathcal{O}(\log n)$ 的栈空间。
+
+## 专题训练
+
+见下面树题单的「**§2.3 自底向上 DFS（后序遍历）**」。
 
 ## 分类题单
 
