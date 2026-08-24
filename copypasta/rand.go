@@ -27,6 +27,8 @@ https://codingcompetitions.withgoogle.com/kickstart/round/0000000000435c44/00000
 https://codeforces.com/problemset/problem/1746/F 2800
 
 异或哈希 xor hashing
+算错的概率约为 Q * 2**-64 https://leetcode.cn/problems/valid-k-unique-subarrays-i/solutions/4016355/yi-huo-ha-xi-chi-xian-shu-zhuang-shu-zu-pkxwi/
+https://leetcode.cn/problems/valid-k-unique-subarrays-i/
 https://codeforces.com/problemset/problem/1996/G 2200
 https://codeforces.com/problemset/problem/1830/C 2400
 https://codeforces.com/problemset/problem/1771/F 2500 主席树
