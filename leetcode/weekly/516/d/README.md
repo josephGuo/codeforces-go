@@ -122,7 +122,7 @@ public:
             int x = nums[i];
             // 把 nums[i] 映射成一个随机的 uint64_t
             if (!hash.contains(x)) {
-                hash[x] = rng();
+                hash[x] = rng() / 3; // https://codeforces.com/blog/entry/153335
             }
             sum[i + 1] = sum[i] ^ hash[x];
         }
@@ -413,7 +413,7 @@ public:
             int x = nums[i];
             // 把 nums[i] 映射成一个随机的 uint64_t
             if (!hash.contains(x)) {
-                hash[x] = rng();
+                hash[x] = rng() / 3; // https://codeforces.com/blog/entry/153335
             }
             sum[i + 1] = sum[i] ^ hash[x];
         }
