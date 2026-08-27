@@ -23,18 +23,20 @@ https://atcoder.jp/contests/abc339/tasks/abc339_f 推荐
 https://atcoder.jp/contests/jsc2025advance-final/tasks/abc422_e
 https://codingcompetitions.withgoogle.com/kickstart/round/0000000000435c44/00000000007ec290 Kick Start 2021 Round C Binary Operator
 
-随机映射
-https://codeforces.com/problemset/problem/1746/F 2800
-
-异或哈希 xor hashing
+异或哈希 (XOR hashing) / 加法哈希 (sum hashing) / 随机赋值
+https://codeforces.com/blog/entry/85900
 算错的概率约为 Q * 2**-64 https://leetcode.cn/problems/valid-k-unique-subarrays-i/solutions/4016355/yi-huo-ha-xi-chi-xian-shu-zhuang-shu-zu-pkxwi/
+Hacking Incorrect XOR Hashing with mt19937_64 https://codeforces.com/blog/entry/153335
+- https://usaco.guide/gold/hashing?lang=cpp#implementation-2
 https://leetcode.cn/problems/valid-k-unique-subarrays-i/
+https://codeforces.com/problemset/problem/2014/H 1900
 https://codeforces.com/problemset/problem/1996/G 2200
+https://codeforces.com/problemset/problem/869/E  2400 加法哈希
 https://codeforces.com/problemset/problem/1830/C 2400
+https://codeforces.com/problemset/problem/1175/F 2500
+https://codeforces.com/problemset/problem/1418/G 2500
 https://codeforces.com/problemset/problem/1771/F 2500 主席树
-
-多项式哈希 加法哈希
-https://codeforces.com/problemset/problem/869/E 2400
+https://codeforces.com/problemset/problem/1746/F 2800 随机赋值
 
 交互
 https://codeforces.com/problemset/problem/843/B 2000

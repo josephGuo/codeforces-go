@@ -1,45 +1,51 @@
 package main
 
 import (
-	"bufio"
 	. "fmt"
 	"io"
-	"math/rand"
+	"math/rand/v2"
 )
 
-// https://space.bilibili.com/206214
-func CF1418G(_r io.Reader, out io.Writer) {
-	in := bufio.NewReader(_r)
-	var n int
+// https://github.com/EndlessCheng
+func cf1418G(in io.Reader, out io.Writer) {
+	var n, v, ans int
 	Fscan(in, &n)
-	a := make([]int, n)
-	base := make([]uint64, n)
-	for i := range a {
-		Fscan(in, &a[i])
-		a[i]--
-		base[i] = rand.Uint64()
+	mp := make([][2]uint, n+1)
+	for i := 1; i <= n; i++ {
+		mp[i] = [2]uint{uint(rand.Uint64()), uint(rand.Uint64())}
 	}
 
-	cnt := make([]int, n)
-	rem := make([]int, n)
-	h := make([]uint64, n+1)
-	cntH := map[uint64]int{0: 1}
-
-	ans := int64(0)
+	a := make([]int, n)
+	tot := make([]int, n+1)
+	cnt := make([]int8, n+1)
+	cntS := map[uint]int{0: 1}
+	s := make([]uint, n+1)
 	l := 0
-	for i, v := range a {
+	for i := range a {
+		Fscan(in, &v)
+		a[i] = v
+
+		s[i+1] = s[i]
+		tot[v]++
+		if tot[v]%3 == 1 {
+			s[i+1] ^= mp[v][0]
+		} else if tot[v]%3 == 2 {
+			s[i+1] ^= mp[v][1]
+		} else {
+			s[i+1] ^= mp[v][0] ^ mp[v][1]
+		}
+
 		cnt[v]++
 		for cnt[v] > 3 {
+			cntS[s[l]]--
 			cnt[a[l]]--
-			cntH[h[l]]--
 			l++
 		}
-		h[i+1] = h[i] + uint64((rem[v]+1)%3-rem[v]%3)*base[v]
-		rem[v]++
-		ans += int64(cntH[h[i+1]])
-		cntH[h[i+1]]++
+
+		ans += cntS[s[i+1]]
+		cntS[s[i+1]]++
 	}
 	Fprint(out, ans)
 }
 
-//func main() { CF1418G(os.Stdin, os.Stdout) }
+//func main() { cf1418G(bufio.NewReader(os.Stdin), os.Stdout) }

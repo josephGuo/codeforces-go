@@ -32,8 +32,9 @@ class Solution:
     def validSubarrays(self, nums: list[int], k: int, queries: list[list[int]]) -> list[bool]:
         n = len(nums)
         s = [0] * (n + 1)
-        # 把 nums[i] 映射成一个随机的 uint64
-        mp = defaultdict(lambda: random.getrandbits(64))  # 或者 randrange(1 << 64)
+        # 把 nums[i] 映射成随机数
+        # 不要在 [0, 2**L) 内随机，见 https://codeforces.com/blog/entry/153335
+        mp = defaultdict(lambda: randrange(10 ** 18))
         for i, x in enumerate(nums):
             s[i + 1] = s[i] ^ mp[x]
 
@@ -264,8 +265,9 @@ class Solution:
     def validSubarrays(self, nums: list[int], k: int, queries: list[list[int]]) -> list[bool]:
         n = len(nums)
         s = [0] * (n + 1)
-        # 把 nums[i] 映射成一个随机的 uint64
-        mp = defaultdict(lambda: random.getrandbits(64))  # 或者 randrange(1 << 64)
+        # 把 nums[i] 映射成随机数
+        # 不要在 [0, 2**L) 内随机，见 https://codeforces.com/blog/entry/153335
+        mp = defaultdict(lambda: randrange(10 ** 18))
         for i, x in enumerate(nums):
             s[i + 1] = s[i] ^ mp[x]
 
@@ -521,13 +523,11 @@ func validSubarrays(nums []int, k int, queries [][]int) []bool {
 
 使用异或哈希，算错的概率是多少？即子数组有元素出现奇数次，但异或和为 $0$。
 
-在随机情况下，每一位是互相独立的。单独讨论某个比特位。$m$ 个 $[0,1]$ 内的随机整数异或，有 $2^m$ 种情况，这可以与 $m$ 个元素的子集一一对应（选表示 $1$，不选表示 $0$）。由于从 $m$ 个元素中选偶数个元素的方案数是 $2^{m-1}$，所以异或和为 $0$ 的概率为 $\dfrac{2^{m-1}}{2^m} = \dfrac{1}{2}$，异或和为 $1$ 的概率也为 $\dfrac{1}{2}$。证明见 [从 n 个数中选奇数个数的方案数](https://zhuanlan.zhihu.com/p/1909852852114948837)。
+设 $m$ 是子数组内的出现奇数次的**不同**元素个数。在随机情况下，每一位是互相独立的。单独讨论某个比特位。$m$ 个 $\{0,1\}$ 内的随机整数异或，有 $2^m$ 种情况，这可以与 $m$ 个元素的子集一一对应（选表示 $1$，不选表示 $0$）。由于从 $m$ 个元素中选奇数个元素的方案数是 $2^{m-1}$，所以异或和为 $1$ 的概率为 $\dfrac{2^{m-1}}{2^m} = \dfrac{1}{2}$，异或和为 $0$ 的概率也为 $\dfrac{1}{2}$。证明见 [从 n 个数中选奇数个数的方案数](https://zhuanlan.zhihu.com/p/1909852852114948837)。所以异或结果的每个比特位都是 $\{0,1\}$ 内的随机整数。总的来看，$m$ 个 $[0,2^{64}-1]$ 内的随机整数的异或和仍然可以视作一个 $[0,2^{64}-1]$ 内的随机整数。
 
-所以 $m$ 个 $[0,2^{64}-1]$ 内的随机整数的异或和仍然可以视作一个 $[0,2^{64}-1]$ 内的随机整数。
+如果 $m = 0$，没有出现奇数次的元素，那么异或和一定是 $0$，一定算对。
 
-如果区间内有 $0$ 个数出现奇数次，那么一定算对。
-
-如果区间内有 $m\ (m\ge 1)$ 个数出现奇数次，那么（单次询问）算错的概率为
+如果 $m\ge 1$，那么（单次询问）算错的概率为
 
 $$
 P(m\ 个数的异或和 = 0) = \dfrac{1}{2^{64}}
