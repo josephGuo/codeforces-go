@@ -30,7 +30,7 @@ class Solution {
         if (n == 1) {
             return s;
         }
-        return s + m + (m - 1) * (n / 2 - 1);
+        return s + m + (long) (m - 1) * (n / 2 - 1);
     }
 }
 ```

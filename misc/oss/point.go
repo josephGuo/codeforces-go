@@ -11,10 +11,32 @@ var rawDir = [...]struct {
 	dirEN string
 }{
 	// 由于屏幕是列数更多，所以更多的是左右移动，要左右移动优先
-	{point{0, -1, 0}, "左", "a"}, {point{0, 1, 0}, "右", "d"},
-	{point{-1, 0, 0}, "上", "w"}, {point{1, 0, 0}, "下", "s"},
+	{point{0, -1, 0}, "左", "a"},
+	{point{0, 1, 0}, "右", "d"},
+
+	{point{-1, 0, 0}, "上", "w"},
+	{point{1, 0, 0}, "下", "s"},
+
 	{point{0, 0, -1}, "落", "n"}, // down
 	{point{0, 0, 1}, "升", "u"},  // up
+}
+
+// todo
+var defaultMirrorDirs = [4]uint8{
+	makeMirrorDir("aw"),
+	makeMirrorDir("sd"),
+	makeMirrorDir("wd"),
+	makeMirrorDir("as"),
+}
+
+func makeMirrorDir(s string) uint8 {
+	dir0 := getDir(s[0])
+	dir1 := getDir(s[1])
+	if dir0 > dir1 {
+		dir0, dir1 = dir1, dir0
+	}
+	// 低小，高大
+	return dir1<<4 | dir0
 }
 
 // 0 -> '/'
