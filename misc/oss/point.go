@@ -141,6 +141,7 @@ type pointWithDir struct {
 	point
 	// 镜子：高 4 位和低 4 位分别保存两个方向（0 ~ 5）   低位保存小的 dir-index，高位保存大的 dir-index
 	// 光束：高 4 位是类型，低 4 位是方向
+	// 其他：dir-index
 	dir uint8
 }
 
@@ -211,7 +212,7 @@ func cmpPointWithDir(a, b pointWithDir) int {
 	return int(cmp.Or(a.z-b.z, a.x-b.x, a.y-b.y))
 }
 
-// 语法糖，可以用负数位置表示倒数行/列/高度（相对 levelMap）
+// 语法糖，可以用负数位置表示倒数行/列（相对 levelMap）
 func changeNegPoint(p point) point {
 	if p.x < 0 {
 		p.x += mapSizeN
@@ -219,9 +220,7 @@ func changeNegPoint(p point) point {
 	if p.y < 0 {
 		p.y += mapSizeM
 	}
-	if p.z < 0 {
-		p.z += mapSizeH
-	}
+	// 请勿调整负数 z
 	return p
 }
 

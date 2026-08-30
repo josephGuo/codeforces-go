@@ -108,6 +108,7 @@ var hasWater = false
 // 初始化变量、检查地图是否与 const 匹配
 func initMap() {
 	fmt.Println("data 结构体大小:", unsafe.Sizeof(data{}), "bytes")
+	fmt.Println()
 
 	mapSizeN = int8(len(levelMap[0]))
 	mapSizeM = int8(len(levelMap[0][0]))
@@ -131,6 +132,12 @@ func initMap() {
 	for i, p := range stonePosInit {
 		stonePosInit[i] = changeNegPoint(p)
 	}
+	for i, p := range lilyPosInit {
+		if p.z != -1 {
+			panic("lilyPosInit[i].z 必须是 -1")
+		}
+		lilyPosInit[i] = changeNegPoint(p)
+	}
 
 	if warriorPosInit != noPos {
 		warriorPosInit = changeNegPoint(warriorPosInit)
@@ -153,7 +160,7 @@ func initMap() {
 
 	var doorMask, switchMask int
 	var warriorNum, thiefNum, wizardNum, priestNum, druidNum, bardNum, explorerNum, sailorNum, merchantNum int
-	var stoneNum, crystalNum, skippingNum, grassesNum, lilyNum, beamNum, mirrorNum, mirrorRefNum, mirrorAuxNum int
+	var stoneNum, crystalNum, skippingStoneNum, grassesNum, lilyNum, beamNum, mirrorNum, mirrorRefNum, mirrorAuxNum int
 	var goblinNum, dragonNum int
 
 	for i, ps := range doors {
@@ -186,7 +193,8 @@ func initMap() {
 		sailorNum++
 	}
 
-	stoneNum = len(stonePosInit)
+	stoneNum += len(stonePosInit)
+	lilyNum += len(lilyPosInit)
 
 	checkGrid := func(grid []string) {
 		for _, row := range grid {
@@ -219,8 +227,8 @@ func initMap() {
 					crystalNum++
 				case 'w':
 					grassesNum++
-				case 'k':
-					skippingNum++
+				case 'K':
+					skippingStoneNum++
 				case 'l':
 					lilyNum++
 				case 'g':
@@ -239,7 +247,7 @@ func initMap() {
 					switchMask |= 1 << (ch - 'x')
 				case 'X', 'Y', 'Z', '[':
 					doorMask |= 1 << (ch - 'X')
-				case '~':
+				case '~', '^', 'v', '<', '>': // 水
 					hasWater = true
 				}
 			}
@@ -297,7 +305,7 @@ func initMap() {
 	if grassesNum != grassNumberInit {
 		panic("没有修改 grass number")
 	}
-	if skippingNum != skippingStoneNumberInit {
+	if skippingStoneNum != skippingStoneNumberInit {
 		panic("没有修改 skipping stone number")
 	}
 	if lilyNum != lilyNumberInit {
@@ -701,10 +709,16 @@ func (d *data) isProtected(char point) bool {
 // todo 摧毁水中的镜子
 func (d *data) isFallIntoWater(p point) bool {
 	if !hasWater ||
-		p.z != 0 || // todo z > 0 中途遇到障碍
-		levelMap[0][p.x][p.y] != '~' {
+		p.z != 0 { // todo z > 0 中途遇到障碍
 		return false
 	}
+	switch levelMap[0][p.x][p.y] {
+	case '~', '^', 'v', '<', '>': // 水
+		// 继续
+	default:
+		return false
+	}
+
 	downP := point{p.x, p.y, -1}
 	// 水中的物品（石头、水晶、水漂石、睡莲叶）
 	// todo 栏杆
@@ -712,8 +726,8 @@ func (d *data) isFallIntoWater(p point) bool {
 		len(d.crystals) > 0 && slices.Contains(d.crystals[:], downP) ||
 		len(d.dragons) > 0 && len(d.druid) > 0 && pdContains(d.dragons[:], downP) ||
 		len(d.goblins) > 0 && len(d.druid) > 0 && pdContains(d.goblins[:], downP) ||
-		skippingStoneNumberInit > 0 && slices.Contains(d.skippingStones[:], downP) ||
-		lilyNumberInit > 0 && slices.Contains(d.lilies[:], downP) ||
+		len(d.skippingStones) > 0 && slices.Contains(d.skippingStones[:], downP) ||
+		len(d.lilies) > 0 && slices.Contains(d.lilies[:], downP) ||
 		d.inAnyClosedDoors(downP) { // 水中的门
 		return false
 	}
@@ -877,6 +891,10 @@ func (d *data) reflectTo(mirror pointWithDir, dir point, step int, allMovableObj
 	return cur
 }
 
+var _allMovableObjs []point
+
+// todo 添加一个参数 alsoMoveTop bool，
+//      使得当物品移动时，物品上方的物品（如果有）也跟着移动
 // 如果只是普通推物品，那么 newDir = math.MaxUint8
 func (d *data) changePos(oldP, newP point, newDir uint8) {
 	// 人
@@ -978,9 +996,124 @@ func (d *data) changePos(oldP, newP point, newDir uint8) {
 		}
 	}
 
+	// 水漂石
 	if skippingStoneNumberInit > 0 {
 		if i := slices.Index(d.skippingStones[:], oldP); i >= 0 {
+			if !d.isFallIntoWater(newP) {
+				d.skippingStones[i] = newP
+				return
+			}
+
+			// newP 在水上，开始移动
+			type pair struct{ point, dir point }
+			lilies := []pair{}
+			cur := newP
+			dir := newP.sub(oldP) // todo
+			for {
+				// 出界
+				if !inBound(cur) {
+					newP = noPos
+					break
+				}
+
+				// 撞上物品
+				if !d.isValidPos(cur) || slices.Contains(_allMovableObjs, cur) {
+					// 回到前一个位置，然后落水
+					newP = cur.sub(dir)
+					newP.z = -1
+					break
+				}
+
+				// 下面不是水
+				if !d.isFallIntoWater(cur) {
+					// 停在这里
+					newP = cur // todo
+
+					p := cur
+					p.z = -1
+					if j := slices.Index(d.lilies[:], p); j >= 0 {
+						lilies = append(lilies, pair{p, dir})
+					}
+					break
+				}
+
+				// 收集遇到的睡莲叶
+				if dir.x != 0 {
+					p := point{cur.x, cur.y - 1, -1}
+					if j := slices.Index(d.lilies[:], p); j >= 0 {
+						lilies = append(lilies, pair{p, point{0, -1, 0}})
+					}
+					p = point{cur.x, cur.y + 1, -1}
+					if j := slices.Index(d.lilies[:], p); j >= 0 {
+						lilies = append(lilies, pair{p, point{0, 1, 0}})
+					}
+				} else {
+					p := point{cur.x - 1, cur.y, -1}
+					if j := slices.Index(d.lilies[:], p); j >= 0 {
+						lilies = append(lilies, pair{p, point{-1, 0, 0}})
+					}
+					p = point{cur.x + 1, cur.y, -1}
+					if j := slices.Index(d.lilies[:], p); j >= 0 {
+						lilies = append(lilies, pair{p, point{1, 0, 0}})
+					}
+				}
+
+				cur = cur.add(dir)
+			}
+
 			d.skippingStones[i] = newP
+
+			// 同时处理睡莲叶的移动
+			// 睡莲叶遇到纯水（不能有其他睡莲叶或石头）才继续移动，其余情况都会停下
+			// todo 先简单点，倒着遍历遇到的睡莲   或者粗略地按照移动距离排序
+			for j := len(lilies) - 1; j >= 0; j-- {
+				lDir := lilies[j].dir
+				p0 := lilies[j].point
+				cur := p0.add(lDir)
+				for {
+					// 出界
+					if !inBound(cur) {
+						cur = noPos
+						break
+					}
+					// 不是纯水
+					if !d.isFallIntoWater(point{cur.x, cur.y, 0}) {
+						cur = cur.sub(lDir)
+						break
+					}
+					ch := levelMap[0][cur.x][cur.y]
+					switch ch {
+					case '^':
+						cur.x--
+						lDir = point{-1, 0, 0} // 最后一步上岸需要用到
+					case 'v':
+						cur.x++
+						lDir = point{1, 0, 0}
+					case '<':
+						cur.y--
+						lDir = point{0, -1, 0}
+					case '>':
+						cur.y++
+						lDir = point{0, 1, 0}
+					default:
+						cur = cur.add(lDir)
+					}
+				}
+				if cur == p0 { // 不动
+					continue
+				}
+				if k := slices.Index(d.lilies[:], p0); k >= 0 {
+					d.lilies[k] = cur
+				}
+				if cur == noPos {
+					continue
+				}
+				// 睡莲叶承载的物品（如果有）也移动
+				p0.z = 0
+				cur.z = 0
+				d.changePos(p0, cur, ignore)
+			}
+
 			return
 		}
 	}
@@ -1013,7 +1146,9 @@ func (d *data) changePos(oldP, newP point, newDir uint8) {
 		}
 	}
 
-	panic("没有发生修改，请检查代码")
+	if newDir != ignore {
+		panic("没有发生修改，请检查代码")
+	}
 }
 
 func (d *data) getCurCharPos() (pos point) {
@@ -1235,6 +1370,9 @@ func solveLevel() []string {
 	__grass := grassInitArr[:0]
 	__skippingStones := skippingStoneInitArr[:0]
 	__lilies := lilyInitArr[:0]
+	for _, p := range lilyPosInit {
+		__lilies = append(__lilies, p)
+	}
 	__goblins := goblinInitArr[:0]
 	__dragons := dragonInitArr[:0]
 	__beams := beamInitArr[:0]
@@ -1349,10 +1487,9 @@ func solveLevel() []string {
 					__crystals = append(__crystals, p)
 				case 'w':
 					__grass = append(__grass, p)
-				case 'k':
+				case 'K':
 					__skippingStones = append(__skippingStones, p)
 				case 'l':
-					p.z-- // todo 注意这里
 					__lilies = append(__lilies, p)
 				case 'g':
 					__goblins = append(__goblins, pointWithDir{p, 0}) // todo 默认方向为 dirs[0]
@@ -1379,7 +1516,9 @@ func solveLevel() []string {
 					monsterDoors = append(monsterDoors, p)
 				case 'f':
 					finals = append(finals, p)
-				case '.', '#', '~', '|', '_', 'L', 'e':
+				case '.', '#', '|', '_', 'L', 'e':
+					// ignore
+				case '~', '^', 'v', '<', '>': // 水
 					// ignore
 				default:
 					panic(fmt.Sprintf("不支持的符号 %c", ch))
@@ -1864,6 +2003,7 @@ func solveLevel() []string {
 		queue = queue[1:]
 
 		allMovableObjs, allChars, allNonChars := d.getAllMovableObjPos(isBigMap, false)
+		_allMovableObjs = allMovableObjs
 
 		var pass bool
 		if !targetIsClearAllMonsters {
@@ -1890,14 +2030,23 @@ func solveLevel() []string {
 				if !ok {
 					panic("代码修改了 d，与存入的 d 不符")
 				}
-				d = pre.data
-				if d == (data{}) { // 初始状态
+				if pre.data == (data{}) { // 初始状态
 					break
 				}
-				if pre.info != "IGNORE" {
+				infoStr := pre.info
+				if infoStr != "IGNORE" {
 					//fmt.Println(pre.thief[0], pre.cleric[0]) // DEBUG
-					path = append(path, pre.info)
+					if pre.lilies != d.lilies {
+						// 大致估算睡莲叶的移动步数
+						maxStep := 0
+						for i, p := range pre.lilies {
+							maxStep = max(maxStep, int(abs(p.x-d.lilies[i].x))+int(abs(p.y-d.lilies[i].y)))
+						}
+						infoStr += strings.Repeat(".", maxStep)
+					}
+					path = append(path, infoStr)
 				}
+				d = pre.data
 			}
 			slices.Reverse(path)
 			return path
@@ -1906,9 +2055,6 @@ func solveLevel() []string {
 		// todo 如果角色的头上有物品，物品会跟着移动（注意镜子的方向会变）    堆叠上限是多少？？
 		// todo 即使人没有移动，切换方向也会改变头上物品（镜子、激光等）的方向
 		// todo 多控时，如果下一个位置是没有石头的水，则一个角色无法移动（已在商人中实现）
-
-		// todo 修改 changePos 的代码，添加一个参数 alsoMoveTop bool，
-		//      使得当物品移动时，物品上方的物品（如果有）也跟着移动
 
 		// 先考虑按 x 镜子反射对象，这样后面移动更流畅
 		// 只要有一个镜子反射失败（红光），就直接 return
@@ -2751,3 +2897,4 @@ const (
 //const skippingStoneDelta = 1 << 6
 
 const dirCrystalDelta = 1 << 6
+const ignore = math.MaxUint8 - 1

@@ -16,17 +16,17 @@ https://leetcode.cn/circle/discuss/mOr1u6/
 https://atcoder.jp/contests/abc212/tasks/abc212_d
 https://atcoder.jp/contests/abc379/tasks/abc379_d
 
+第 k 小/大（值/和）
 动态维护最大的 k 个数用最小堆，动态维护最小的 k 个数用最大堆
-https://codeforces.com/problemset/problem/1969/D 1900
-
-第 K 小/大（值/和）
 https://atcoder.jp/contests/abc297/tasks/abc297_e
+https://codeforces.com/problemset/problem/2252/C 1400
 https://codeforces.com/problemset/problem/1106/D 1500
 https://codeforces.com/problemset/problem/1140/C 1600
 - https://atcoder.jp/contests/abc376/tasks/abc376_e
 https://codeforces.com/problemset/problem/1862/E 1600
 https://codeforces.com/problemset/problem/1862/E 1600
 https://codeforces.com/problemset/problem/1935/C 1800
+https://codeforces.com/problemset/problem/1969/D 1900
 https://codeforces.com/problemset/problem/1196/F 2200
 
 模拟
