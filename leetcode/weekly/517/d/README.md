@@ -35,7 +35,6 @@ $$
 ## 优化前
 
 ```py [sol-Python3]
-# 超时了！请看优化后的代码
 class Solution:
     def minOperations(self, nums: list[int], sum: int) -> int:
         f = [0] + [inf] * sum
@@ -52,6 +51,9 @@ class Solution:
                         f[i] = min(f[i], f[i - (x >> a << b)] + a + b)
                         b += 1
                     a += 1
+ 
+            if f[sum] == 0:  # 优化：提前返回
+                return 0
 
         return -1 if f[sum] == inf else f[sum]
 ```
@@ -73,6 +75,9 @@ class Solution {
                         f[i] = Math.min(f[i], f[i - (x >> a << b)] + a + b);
                     }
                 }
+            }
+            if (f[sum] == 0) { // 优化：提前返回
+                return 0;
             }
         }
 
@@ -99,6 +104,9 @@ public:
                     }
                 }
             }
+            if (f[sum] == 0) { // 优化：提前返回
+                return 0;
+            }
         }
 
         return f[sum] == INT_MAX / 2 ? -1 : f[sum];
@@ -123,6 +131,9 @@ func minOperations(nums []int, sum int) int {
 					f[i] = min(f[i], f[i-x>>a<<b]+a+b)
 				}
 			}
+		}
+		if f[sum] == 0 { // 优化：提前返回
+			return 0
 		}
 	}
 
@@ -170,6 +181,9 @@ class Solution:
                         break
                     f[i] = min(f[i], f[i - v] + c)  # 手写 min 更快，见【Python3 更快的写法】
 
+            if f[sum] == 0:
+                return 0
+
         return -1 if f[sum] == inf else f[sum]
 ```
 
@@ -202,6 +216,9 @@ class Solution:
                     if tmp < mn:  # 手写 min
                         mn = tmp
                 f[i] = mn
+
+            if f[sum] == 0:
+                return 0
 
         return -1 if f[sum] == inf else f[sum]
 ```

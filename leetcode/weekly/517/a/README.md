@@ -1,4 +1,4 @@
-统计每个元素的所有出现位置。
+## 方法一：记录元素出现位置
 
 设元素 $x$ 的出现位置列表为 $p$，长度为 $m$。
 
@@ -11,7 +11,7 @@
 ```py [sol-Python3]
 class Solution:
     def countSpecialIntegers(self, nums: list[int]) -> int:
-        pos = defaultdict(list)
+        pos = defaultdict(list)  # x -> [x 的所有出现位置]
         for i, x in enumerate(nums):
             pos[x].append(i)
 
@@ -25,7 +25,7 @@ class Solution:
 ```java [sol-Java]
 class Solution {
     public int countSpecialIntegers(int[] nums) {
-        Map<Integer, List<Integer>> pos = new HashMap<>();
+        Map<Integer, List<Integer>> pos = new HashMap<>(); // x -> [x 的所有出现位置]
         for (int i = 0; i < nums.length; i++) {
             pos.computeIfAbsent(nums[i], _ -> new ArrayList<>()).add(i);
         }
@@ -45,14 +45,14 @@ class Solution {
 class Solution {
 public:
     int countSpecialIntegers(vector<int>& nums) {
-        unordered_map<int, vector<int>> pos;
+        unordered_map<int, vector<int>> pos; // x -> [x 的所有出现位置]
         for (int i = 0; i < nums.size(); i++) {
             pos[nums[i]].push_back(i);
         }
 
         int ans = 0;
         for (auto& [_, p] : pos) {
-            if (p.back() - p.front() + 1 == p.size()) {
+            if (p.back() - p[0] + 1 == p.size()) {
                 ans++;
             }
         }
@@ -63,7 +63,7 @@ public:
 
 ```go [sol-Go]
 func countSpecialIntegers(nums []int) (ans int) {
-	pos := map[int][]int{}
+	pos := map[int][]int{} // x -> [x 的所有出现位置]
 	for i, x := range nums {
 		pos[x] = append(pos[x], i)
 	}
@@ -81,6 +81,88 @@ func countSpecialIntegers(nums []int) (ans int) {
 
 - 时间复杂度：$\mathcal{O}(n)$，其中 $n$ 是 $\textit{nums}$ 的长度。
 - 空间复杂度：$\mathcal{O}(n)$。
+
+## 方法二：一次遍历
+
+只考虑每个连续相同段的第一个数 $x$。
+
+- 如果首次遇到 $x$，那么暂时认为 $x$ 是特殊整数，把答案加一。
+- 如果第二次遇到 $x$，那么 $x$ 不是特殊整数，撤销之前的加一。
+
+```py [sol-Python3]
+class Solution:
+    def countSpecialIntegers(self, nums: list[int]) -> int:
+        cnt = defaultdict(int)
+        ans = 0
+        for i, x in enumerate(nums):
+            if i == 0 or x != nums[i - 1]:  # x 是这一段的第一个数
+                cnt[x] += 1
+                if cnt[x] == 1:  # 首次遇到 x，暂时认为 x 是特殊整数
+                    ans += 1
+                elif cnt[x] == 2:  # x 不是特殊整数，撤销之前的 ans += 1
+                    ans -= 1
+        return ans
+```
+
+```java [sol-Java]
+class Solution {
+    public int countSpecialIntegers(int[] nums) {
+        Map<Integer, Integer> cnt = new HashMap<>();
+        int ans = 0;
+        for (int i = 0; i < nums.length; i++) {
+            int x = nums[i];
+            if (i == 0 || x != nums[i - 1]) { // x 是这一段的第一个数
+                int c = cnt.merge(x, 1, Integer::sum); // c = ++cnt[x]
+                if (c == 1) { // 首次遇到 x，暂时认为 x 是特殊整数
+                    ans++;
+                } else if (c == 2) { // x 不是特殊整数，撤销之前的 ans++
+                    ans--;
+                }
+            }
+        }
+        return ans;
+    }
+}
+```
+
+```cpp [sol-C++]
+class Solution {
+public:
+    int countSpecialIntegers(vector<int>& nums) {
+        unordered_map<int, int> cnt;
+        int ans = 0;
+        for (int i = 0; i < nums.size(); i++) {
+            int x = nums[i];
+            if (i == 0 || x != nums[i - 1]) { // x 是这一段的第一个数
+                cnt[x]++;
+                if (cnt[x] == 1) { // 首次遇到 x，暂时认为 x 是特殊整数
+                    ans++;
+                } else if (cnt[x] == 2) { // x 不是特殊整数，撤销之前的 ans++
+                    ans--;
+                }
+            }
+        }
+        return ans;
+    }
+};
+```
+
+```go [sol-Go]
+func countSpecialIntegers(nums []int) (ans int) {
+	cnt := map[int]int{}
+	for i, x := range nums {
+		if i == 0 || x != nums[i-1] { // x 是这一段的第一个数
+			cnt[x]++
+			if cnt[x] == 1 { // 首次遇到 x，暂时认为 x 是特殊整数
+				ans++
+			} else if cnt[x] == 2 { // x 不是特殊整数，撤销之前的 ans++
+				ans--
+			}
+		}
+	}
+	return
+}
+```
 
 ## 分类题单
 

@@ -1,3 +1,8 @@
+本文介绍两个方法：
+
+1. 至多考虑 $\mathcal{O}(\log U)$ 个要删除的位置。其中 $U=\max(\textit{nums})$。
+2. 至多考虑 $1$ 个要删除的位置。
+
 ## 性质一
 
 数组 $a$ 的有效分割相当于把 $a$ 分割成前缀 $P$ 和后缀 $Q$，使得 
@@ -32,7 +37,7 @@ $$
 \gcd(\textit{nums}) = \gcd(\textit{pre}[k], \textit{suf}[k+1]) = \gcd(\textit{pre}[k-1], \textit{suf}[k+1])
 $$
 
-这说明删除 $\textit{nums}[k]$ 不改变整个数组的 GCD。
+这说明删除 $\textit{nums}[k]$ 不改变数组的 GCD。
 
 设 $G = \gcd(\textit{nums})$。根据 GCD 的定义，$\textit{nums}[k]$ 是 $G$ 的倍数。
 
@@ -270,7 +275,7 @@ func gcd(a, b int) int {
 
 由于 $\textit{suf}$ 是递增的，设 $\textit{pre}$ 中的最后一个 $G$ 的下标是 $q$，那么 $\textit{suf}$ 的前缀 $[0,q]$ 都是 $G$。
 
-合法分割 $(i,i+1)$ 要满足 $\textit{pre}[i] = \textit{suf}[i+1] = G$，所以有 $i\ge p$ 且 $i+1\le q$，这样的 $i$ 一共有
+有效分割 $(i,i+1)$ 要满足 $\textit{pre}[i] = \textit{suf}[i+1] = G$，所以有 $i\ge p$ 且 $i+1\le q$，这样的 $i$ 一共有
 
 $$
 \max(q-p, 0)
@@ -278,7 +283,7 @@ $$
 
 个。
 
-所以找到 $p$ 和 $q$，就能算出合法分割个数。这一结论可以让我们提前跳出循环。
+所以找到 $p$ 和 $q$，就能算出有效分割个数。这一结论可以让我们在计算前后缀 GCD 时，提前跳出循环，减少计算量。
 
 ```py [sol-Python3]
 class Solution:
@@ -327,7 +332,7 @@ class Solution:
 
             res = q - p
             if p <= i < q:
-                res -= 1  # 因为删除了 nums[i]，少一个合法分割
+                res -= 1  # 因为删除了 nums[i]，少一个有效分割
             ans = max(ans, res)
 
         return ans
@@ -395,7 +400,7 @@ class Solution {
 
             int res = q - p;
             if (p <= i && i < q) {
-                res--; // 因为删除了 nums[i]，少一个合法分割
+                res--; // 因为删除了 nums[i]，少一个有效分割
             }
             ans = Math.max(ans, res);
         }
@@ -422,13 +427,13 @@ public:
         vector<int> pre_gcd(n);
         int g = 0;
         for (int i = 0; i < n; i++) {
-            g = gcd(g, nums[i]);
+            g = __gcd(g, nums[i]); // __gcd 比 gcd 快
             pre_gcd[i] = g;
         }
 
         vector<int> suf_gcd(n + 1);
         for (int i = n - 1; i >= 0; i--) {
-            suf_gcd[i] = gcd(suf_gcd[i + 1], nums[i]);
+            suf_gcd[i] = __gcd(suf_gcd[i + 1], nums[i]);
         }
 
         // 不删任何数
@@ -443,14 +448,14 @@ public:
             }
 
             // 删除 nums[i]
-            int new_g = i ? gcd(pre_gcd[i - 1], suf_gcd[i + 1]) : suf_gcd[i + 1];
+            int new_g = i ? __gcd(pre_gcd[i - 1], suf_gcd[i + 1]) : suf_gcd[i + 1];
 
             g = 0;
             for (int j = 0; j < n; j++) {
                 if (j == i) {
                     continue;
                 }
-                g = gcd(g, nums[j]);
+                g = __gcd(g, nums[j]);
                 if (g == new_g) {
                     p = j;
                     break;
@@ -462,7 +467,7 @@ public:
                 if (j == i) {
                     continue;
                 }
-                g = gcd(g, nums[j]);
+                g = __gcd(g, nums[j]);
                 if (g == new_g) {
                     q = j;
                     break;
@@ -471,7 +476,7 @@ public:
 
             int res = q - p;
             if (p <= i && i < q) {
-                res--; // 因为删除了 nums[i]，少一个合法分割
+                res--; // 因为删除了 nums[i]，少一个有效分割
             }
             ans = max(ans, res);
         }
@@ -539,7 +544,7 @@ func maxValidSplits(nums []int) int {
 
 		res := q - p
 		if p <= i && i < q {
-			res-- // 因为删除了 nums[i]，少一个合法分割
+			res-- // 因为删除了 nums[i]，少一个有效分割
 		}
 		ans = max(ans, res)
 	}
@@ -560,10 +565,327 @@ func gcd(a, b int) int {
 - 时间复杂度：$\mathcal{O}((n+\log U)\log U)$，其中 $n$ 是 $\textit{nums}$ 的长度，$U=\max(\textit{nums})$。我们枚举了 $\mathcal{O}(\log U)$ 个删除位置，每次需要 $\mathcal{O}(n+\log U)$ 的时间计算前后缀 GCD。为什么是 $\mathcal{O}(n+\log U)$？由于前缀（后缀）越长，GCD 要么不变，要么至少减半。一个数至多减半 $\mathcal{O}(\log U)$ 次，所以 $\texttt{countValidSplits}$ 的循环次数是 $\mathcal{O}(n + \log U)$。
 - 空间复杂度：$\mathcal{O}(n)$。
 
+## 进一步优化
+
+在性质二中，我们证明了，如果删除 $\textit{nums}[k]$ 不改变数组的 GCD，那么无需考虑删除 $\textit{nums}[k]$ 的情况。
+
+如果删除 $\textit{nums}[k]$ 会导致数组 GCD 增大呢？
+
+设 $\textit{nums}[i]$ 的质因子分解中，质因子 $p$ 的指数（出现次数）为 $v_p(\textit{nums}[i])$。从质因子分解的角度来说，GCD 的本质是对于每个质数 $p$，计算 $\min\limits_{i=0}^{n-1} v_p(\textit{nums}[i])$。
+
+对于 $\textit{nums}[k]$，如果其存在某个质因子 $p$ 使得 $v_p(\textit{nums}[k])$ 是所有 $v_p(\textit{nums}[i])$ 中的**唯一最小值**，那么删除 $\textit{nums}[k]$ 会导致 GCD 中的 $p$ 的指数增大，从而导致 GCD 增大。反之，删除 $\textit{nums}[k]$ 不会改变数组 GCD。
+
+此外，如果 $\textit{nums}[k]$ 有「唯一最小值」性质，那么一定要考虑删除。这是因为如果不删，那么对于 $\textit{nums}$ 的任何分割，不包含 $\textit{nums}[k]$ 的那一侧，GCD 中的 $p$ 的指数比包含 $\textit{nums}[k]$ 那一侧的更大，所以两侧的 GCD 一定不同，所以 $\textit{nums}$ 没有任何有效分割。
+
+分类讨论：
+
+- 如果有多个会导致 GCD 增大的数，那么即使我们删除了其中一个数，仍然存在有「唯一最小值」性质的数，剩余 $n-1$ 个数没有任何有效分割。
+- 如果只有一个会导致 GCD 增大的数，那么删除这个数。
+- 如果没有会导致 GCD 增大的数，那么只需计算 $\textit{nums}$ 的有效分割个数。
+
+所以至多只需考虑一个要删除的数。
+
+```py [sol-Python3]
+class Solution:
+    def maxValidSplits(self, nums: list[int]) -> int:
+        n = len(nums)
+        pre_gcd = [0] * n
+        g = 0
+        for i, x in enumerate(nums):
+            g = gcd(g, x)
+            pre_gcd[i] = g
+
+        suf_gcd = [0] * (n + 1)
+        for i in range(n - 1, -1, -1):
+            suf_gcd[i] = gcd(suf_gcd[i + 1], nums[i])
+
+        # 不删任何数
+        all_gcd = suf_gcd[0]
+        p = pre_gcd.index(all_gcd)  # [p,n-1] 都是 all_gcd
+        q = bisect_right(suf_gcd, all_gcd, 0, n) - 1  # [0,q] 都是 all_gcd
+        ans = max(q - p, 0)  # 满足 i >= p 且 i+1 <= q 的 i 的个数
+
+        for i in range(n):
+            if i > 0 and pre_gcd[i] == pre_gcd[i - 1]:
+                continue
+
+            # 删除 nums[i]
+            new_g = gcd(pre_gcd[i - 1], suf_gcd[i + 1]) if i else suf_gcd[i + 1]
+            if new_g == all_gcd:
+                continue
+
+            g = 0
+            for j, x in enumerate(nums):
+                if j == i:
+                    continue
+                g = gcd(g, x)
+                if g == new_g:
+                    p = j
+                    break
+
+            g = 0
+            for j in range(n - 1, -1, -1):
+                if j == i:
+                    continue
+                g = gcd(g, nums[j])
+                if g == new_g:
+                    q = j
+                    break
+
+            res = q - p
+            if p <= i < q:
+                res -= 1  # 因为删除了 nums[i]，少一个有效分割
+            ans = max(ans, res)
+            break
+
+        return ans
+```
+
+```java [sol-Java]
+class Solution {
+    public int maxValidSplits(int[] nums) {
+        int n = nums.length;
+        int[] preGcd = new int[n];
+        int g = 0;
+        for (int i = 0; i < n; i++) {
+            g = gcd(g, nums[i]);
+            preGcd[i] = g;
+        }
+
+        int[] sufGcd = new int[n + 1];
+        for (int i = n - 1; i >= 0; i--) {
+            sufGcd[i] = gcd(sufGcd[i + 1], nums[i]);
+        }
+
+        // 不删任何数
+        int allGcd = sufGcd[0];
+        int p = 0;
+        while (preGcd[p] != allGcd) {
+            p++;
+        }
+        int q = n - 1;
+        while (sufGcd[q] != allGcd) {
+            q--;
+        }
+        int ans = Math.max(q - p, 0); // 满足 i >= p 且 i+1 <= q 的 i 的个数
+
+        for (int i = 0; i < n; i++) {
+            if (i > 0 && preGcd[i] == preGcd[i - 1]) {
+                continue;
+            }
+
+            // 删除 nums[i]
+            int newG = i > 0 ? gcd(preGcd[i - 1], sufGcd[i + 1]) : sufGcd[i + 1];
+            if (newG == allGcd) {
+                continue;
+            }
+
+            g = 0;
+            for (int j = 0; j < n; j++) {
+                if (j == i) {
+                    continue;
+                }
+                g = gcd(g, nums[j]);
+                if (g == newG) {
+                    p = j;
+                    break;
+                }
+            }
+
+            g = 0;
+            for (int j = n - 1; j >= 0; j--) {
+                if (j == i) {
+                    continue;
+                }
+                g = gcd(g, nums[j]);
+                if (g == newG) {
+                    q = j;
+                    break;
+                }
+            }
+
+            int res = q - p;
+            if (p <= i && i < q) {
+                res--; // 因为删除了 nums[i]，少一个有效分割
+            }
+            ans = Math.max(ans, res);
+            break;
+        }
+
+        return ans;
+    }
+
+    private int gcd(int a, int b) {
+        while (a != 0) {
+            int tmp = a;
+            a = b % a;
+            b = tmp;
+        }
+        return b;
+    }
+}
+```
+
+```cpp [sol-C++]
+class Solution {
+public:
+    int maxValidSplits(vector<int>& nums) {
+        int n = nums.size();
+        vector<int> pre_gcd(n);
+        int g = 0;
+        for (int i = 0; i < n; i++) {
+            g = __gcd(g, nums[i]); // __gcd 比 gcd 快
+            pre_gcd[i] = g;
+        }
+
+        vector<int> suf_gcd(n + 1);
+        for (int i = n - 1; i >= 0; i--) {
+            suf_gcd[i] = __gcd(suf_gcd[i + 1], nums[i]);
+        }
+
+        // 不删任何数
+        int all_gcd = suf_gcd[0];
+        int p = ranges::find(pre_gcd, all_gcd) - pre_gcd.begin(); // [p,n-1] 都是 all_gcd
+        int q = upper_bound(suf_gcd.begin(), suf_gcd.begin() + n, all_gcd) - suf_gcd.begin() - 1; // [0,q] 都是 all_gcd
+        int ans = max(q - p, 0); // 满足 i >= p 且 i+1 <= q 的 i 的个数
+
+        for (int i = 0; i < n; i++) {
+            if (i > 0 && pre_gcd[i] == pre_gcd[i - 1]) {
+                continue;
+            }
+
+            // 删除 nums[i]
+            int new_g = i ? __gcd(pre_gcd[i - 1], suf_gcd[i + 1]) : suf_gcd[i + 1];
+            if (new_g == all_gcd) {
+                continue;
+            }
+
+            g = 0;
+            for (int j = 0; j < n; j++) {
+                if (j == i) {
+                    continue;
+                }
+                g = __gcd(g, nums[j]);
+                if (g == new_g) {
+                    p = j;
+                    break;
+                }
+            }
+
+            g = 0;
+            for (int j = n - 1; j >= 0; j--) {
+                if (j == i) {
+                    continue;
+                }
+                g = __gcd(g, nums[j]);
+                if (g == new_g) {
+                    q = j;
+                    break;
+                }
+            }
+
+            int res = q - p;
+            if (p <= i && i < q) {
+                res--; // 因为删除了 nums[i]，少一个有效分割
+            }
+            ans = max(ans, res);
+            break;
+        }
+
+        return ans;
+    }
+};
+```
+
+```go [sol-Go]
+func maxValidSplits(nums []int) int {
+	n := len(nums)
+	preGcd := make([]int, n)
+	g := 0
+	for i, x := range nums {
+		g = gcd(g, x)
+		preGcd[i] = g
+	}
+
+	sufGcd := make([]int, n+1)
+	for i := n - 1; i >= 0; i-- {
+		sufGcd[i] = gcd(sufGcd[i+1], nums[i])
+	}
+
+	// 不删任何数
+	allGcd := sufGcd[0]
+	p := sort.Search(n, func(i int) bool { return preGcd[i] == allGcd }) // [p,n-1] 都是 allGcd
+	q := sort.SearchInts(sufGcd[:n], allGcd+1) - 1 // [0,q] 都是 allGcd
+	ans := max(q-p, 0) // 满足 i >= p 且 i+1 <= q 的 i 的个数
+
+	for i := range n {
+		if i > 0 && preGcd[i] == preGcd[i-1] {
+			continue
+		}
+
+		// 删除 nums[i]
+		newG := sufGcd[i+1]
+		if i > 0 {
+			newG = gcd(preGcd[i-1], sufGcd[i+1])
+		}
+
+		if newG == allGcd {
+			continue
+		}
+
+		g = 0
+		for j, x := range nums {
+			if j == i {
+				continue
+			}
+			g = gcd(g, x)
+			if g == newG {
+				p = j
+				break
+			}
+		}
+
+		g = 0
+		for j := n - 1; j >= 0; j-- {
+			if j == i {
+				continue
+			}
+			g = gcd(g, nums[j])
+			if g == newG {
+				q = j
+				break
+			}
+		}
+
+		res := q - p
+		if p <= i && i < q {
+			res-- // 因为删除了 nums[i]，少一个有效分割
+		}
+		ans = max(ans, res)
+		break
+	}
+
+	return ans
+}
+
+func gcd(a, b int) int {
+	for a != 0 {
+		a, b = b%a, a
+	}
+	return b
+}
+```
+
+#### 复杂度分析
+
+- 时间复杂度：$\mathcal{O}(n+\log^2 U)$，其中 $n$ 是 $\textit{nums}$ 的长度，$U=\max(\textit{nums})$。注意我们计算了 $\mathcal{O}(\log U)$ 次删除后的 GCD，每次算 GCD 需要 $\mathcal{O}(\log U)$ 的时间，所以这部分需要 $\mathcal{O}(\log^2 U)$ 的时间。其余同上面的复杂度分析，需要 $\mathcal{O}(n + \log U)$ 的时间。
+- 空间复杂度：$\mathcal{O}(n)$。
+
 ## 专题训练
 
 1. 动态规划题单的「**专题：前后缀分解**」。
-2. 位运算题单的「**GCD LogTrick**」。
+2. 数学题单的「**§1.6 最大公约数**」。
+3. 位运算题单的「**GCD LogTrick**」。
 
 ## 分类题单
 

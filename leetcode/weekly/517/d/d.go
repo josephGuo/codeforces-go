@@ -20,6 +20,9 @@ func minOperations(nums []int, sum int) int {
 				}
 			}
 		}
+		if f[sum] == 0 { // 优化：提前返回
+			return 0
+		}
 	}
 
 	if f[sum] == math.MaxInt/2 {
