@@ -1,11 +1,11 @@
-本文介绍两个方法：
+本文介绍两种方法：
 
 1. 至多考虑 $\mathcal{O}(\log U)$ 个要删除的位置。其中 $U=\max(\textit{nums})$。
 2. 至多考虑 $1$ 个要删除的位置。
 
 ## 性质一
 
-数组 $a$ 的有效分割相当于把 $a$ 分割成前缀 $P$ 和后缀 $Q$，使得 
+数组 $a$ 的有效分割是把 $a$ 分割成前缀 $P$ 和后缀 $Q$，满足 
 
 $$
 \gcd(P) = \gcd(Q) = G
@@ -29,7 +29,7 @@ $$
 
 设 $\textit{pre}[i]$ 为 $\textit{nums}$ 的前缀 $[0,i]$ 的 GCD。
 
-设 $\textit{suf}[i]$ 为 $\textit{nums}$ 的后缀 $[i,n-1]$ 的 GCD。其中 $n$ 是 $\textit{nums}$ 的长度。
+设 $\textit{suf}[i]$ 为 $\textit{nums}$ 的后缀 $[i,n-1]$ 的 GCD，其中 $n$ 是 $\textit{nums}$ 的长度。
 
 设下标 $k$ 满足 $\textit{pre}[k] = \textit{pre}[k-1]$，那么有
 
@@ -43,7 +43,7 @@ $$
 
 设删除 $\textit{nums}[k]$ 后的数组为 $a$，其长度为 $n-1$。
 
-考虑 $a$ 的一个有效分割 $(j,j+1)$，我们有
+考虑 $a$ 的一个有效分割 $(j,j+1)$，根据性质一，我们有
 
 $$
 \gcd(a[0,j]) = \gcd(a[j+1,n-2]) = \gcd(a) = G
@@ -56,15 +56,15 @@ $$
 - 如果 $\textit{nums}[k]$ 位于前缀中，由于 $\textit{nums}[k]$ 是 $G$ 的倍数，所以 $\gcd(G, \textit{nums}[k]) = G$，说明添加 $\textit{nums}[k]$ 后，前缀 GCD 仍然是 $G$。后缀没变，其 GCD 仍然是 $G$。所以前缀后缀 GCD 仍然相等，分割 $(j,j+1)$ 仍然为有效分割。
 - 如果 $\textit{nums}[k]$ 位于后缀中，同理，分割 $(j,j+1)$ 仍然为有效分割。
 
-**结论**：在 $a$ 中的每个有效分割，都能在 $\textit{nums}$ 中找到与之对应的有效分割。换句话说，$a$ 的得分小于等于 $\textit{nums}$ 的得分。所以无需考虑满足 $\textit{pre}[k] = \textit{pre}[k-1]$ 的下标 $k$。
+**结论**：在 $a$ 中的每个有效分割，都能在 $\textit{nums}$ 中找到与之对应的有效分割。所以 $a$ 的得分小于等于 $\textit{nums}$ 的得分，我们无需考虑满足 $\textit{pre}[k] = \textit{pre}[k-1]$ 的下标 $k$。
 
 由此，我们得到一个重要剪枝：
 
-- 如果要删除，只需考虑删除 $\textit{nums}[k]$，满足 $k=0$ 或者 $\textit{pre}[k] \ne \textit{pre}[k-1]$。
+- 如果要删除，只需考虑满足 $k=0$ 或者 $\textit{pre}[k] \ne \textit{pre}[k-1]$ 的下标 $k$。
 
-> 这样的 $k$ 有多少个？换句话说，前缀 GCD 会变化多少次？
+> **问**：这样的 $k$ 有多少个？换句话说，前缀 GCD 会变化多少次？
 > 
-> 设前缀 $[0,i-1]$ 的 GCD 为 $g$，考虑前缀 $[0,i]$ 的 GCD，即 $\gcd(g, \textit{nums}[i])$，这是 $g$ 的因子。所以前缀 $[0,i]$ 的 GCD，要么不变仍然为 $g$，要么是 $g$ 的真因子，不超过 $\dfrac{g}{2}$。所以前缀越长，GCD 要么不变，要么至少减半。而一个数至多减半 $\mathcal{O}(\log U)$ 次，其中 $U=\max(\textit{nums})$。所以前缀 GCD 只会变化 $\mathcal{O}(\log U)$ 次。
+> **答**：设前缀 $[0,i-1]$ 的 GCD 为 $g$，考虑前缀 $[0,i]$ 的 GCD，即 $\gcd(g, \textit{nums}[i])$，这是 $g$ 的因子。所以前缀 $[0,i]$ 的 GCD，要么不变仍然为 $g$，要么是 $g$ 的真因子，不超过 $\dfrac{g}{2}$。所以前缀越长，GCD 要么不变，要么至少减半。而一个数至多减半 $\mathcal{O}(\log U)$ 次，其中 $U=\max(\textit{nums})$。所以前缀 GCD 只会变化 $\mathcal{O}(\log U)$ 次。
 
 ## 计算得分
 
@@ -571,9 +571,9 @@ func gcd(a, b int) int {
 
 如果删除 $\textit{nums}[k]$ 会导致数组 GCD 增大呢？
 
-设 $\textit{nums}[i]$ 的质因子分解中，质因子 $p$ 的指数（出现次数）为 $v_p(\textit{nums}[i])$。从质因子分解的角度来说，GCD 的本质是对于每个质数 $p$，计算 $\min\limits_{i=0}^{n-1} v_p(\textit{nums}[i])$。
+设 $\textit{nums}[i]$ 的质因子分解中，质因子 $p$ 的指数（出现次数）为 $\nu_p(\textit{nums}[i])$。从质因子分解的角度来说，GCD 的本质是对于每个质数 $p$，计算 $\min\limits_{i=0}^{n-1} \nu_p(\textit{nums}[i])$。
 
-对于 $\textit{nums}[k]$，如果其存在某个质因子 $p$ 使得 $v_p(\textit{nums}[k])$ 是所有 $v_p(\textit{nums}[i])$ 中的**唯一最小值**，那么删除 $\textit{nums}[k]$ 会导致 GCD 中的 $p$ 的指数增大，从而导致 GCD 增大。反之，删除 $\textit{nums}[k]$ 不会改变数组 GCD。
+对于 $\textit{nums}[k]$，如果其存在某个质因子 $p$ 使得 $\nu_p(\textit{nums}[k])$ 是所有 $\nu_p(\textit{nums}[i])$ 中的**唯一最小值**，那么删除 $\textit{nums}[k]$ 会导致 GCD 中的 $p$ 的指数增大，从而导致 GCD 增大。反之，删除 $\textit{nums}[k]$ 不会改变数组 GCD。
 
 此外，如果 $\textit{nums}[k]$ 有「唯一最小值」性质，那么一定要考虑删除。这是因为如果不删，那么对于 $\textit{nums}$ 的任何分割，不包含 $\textit{nums}[k]$ 的那一侧，GCD 中的 $p$ 的指数比包含 $\textit{nums}[k]$ 那一侧的更大，所以两侧的 GCD 一定不同，所以 $\textit{nums}$ 没有任何有效分割。
 

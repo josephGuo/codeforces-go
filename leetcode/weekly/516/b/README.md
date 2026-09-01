@@ -8,7 +8,7 @@ $$
 
 例如 $\textit{nums}[i-1] = 3$，$\textit{nums}[i] = 7$，那么 $[4,6]$ 是一段缺失的整数。
 
-本题只关注在区间 $[\textit{lower}, \textit{upper}]$ 中的缺失整数。我们可以先把 $\textit{lower}-1$ 和 $\textit{upper}+1$ 这两个哨兵添加到 $\textit{nums}$ 中，排序，然后二分（或者遍历）找到哨兵的位置，按照上文的方法遍历即可。
+本题只关注在区间 $[\textit{lower}, \textit{upper}]$ 中的缺失整数。我们可以先把 $\textit{lower}-1$ 和 $\textit{upper}+1$ 这两个哨兵添加到 $\textit{nums}$ 中，排序，然后二分（或者遍历）找到能产生答案的起止位置，按照上文的方法遍历即可。
 
 [本题视频讲解](https://www.bilibili.com/video/BV18p846TEwX/?t=50m30s)，欢迎点赞关注~
 
@@ -18,8 +18,8 @@ class Solution:
         nums += [lower - 1, upper + 1]
         nums.sort()
 
-        l = bisect_left(nums, lower)
-        r = bisect_right(nums, upper)
+        l = bisect_right(nums, lower)
+        r = bisect_left(nums, upper)
 
         ans = []
         for i in range(l, r + 1):
@@ -38,7 +38,7 @@ class Solution {
 
         int l = Arrays.binarySearch(a, lower);
         if (l < 0) l = ~l; // 见 Arrays.binarySearch 源码
-        int r = Arrays.binarySearch(a, upper + 1);
+        int r = Arrays.binarySearch(a, upper);
         if (r < 0) r = ~r;
 
         List<List<Integer>> ans = new ArrayList<>();
@@ -59,8 +59,8 @@ public:
         nums.insert(nums.end(), {lower - 1, upper + 1});
         ranges::sort(nums);
 
-        int l = ranges::lower_bound(nums, lower) - nums.begin();
-        int r = ranges::upper_bound(nums, upper) - nums.begin();
+        int l = ranges::upper_bound(nums, lower) - nums.begin();
+        int r = ranges::lower_bound(nums, upper) - nums.begin();
 
         vector<vector<int>> ans;
         for (int i = l; i <= r; i++) {
@@ -78,8 +78,8 @@ func findDisappearedNumbers(nums []int, lower, upper int) (ans [][]int) {
 	nums = append(nums, lower-1, upper+1)
 	slices.Sort(nums)
 
-	l := sort.SearchInts(nums, lower)
-	r := sort.SearchInts(nums, upper+1)
+	l := sort.SearchInts(nums, lower+1)
+	r := sort.SearchInts(nums, upper)
 
 	for i := l; i <= r; i++ {
 		if nums[i]-nums[i-1] > 1 {
