@@ -6,9 +6,11 @@ import (
 	"testing"
 )
 
-// 提交地址：https://atcoder.jp/contests/abc250/submit?taskScreenName=abc250_e
-func Test_run(t *testing.T) {
-	t.Log("Current test is [e]")
+// 题目：https://atcoder.jp/contests/abc250/tasks/abc250_e ~CF1786 1421
+// 提交：https://atcoder.jp/contests/abc250/submit?taskScreenName=abc250_e
+// 对拍：https://atcoder.jp/contests/abc250/submissions?f.LanguageName=Go&f.Status=AC&f.Task=abc250_e&orderBy=source_length
+// 最短：https://atcoder.jp/contests/abc250/submissions?f.Status=AC&f.Task=abc250_e&orderBy=source_length
+func Test_e(t *testing.T) {
 	testCases := [][2]string{
 		{
 			`5
@@ -34,4 +36,3 @@ No`,
 	}
 	testutil.AssertEqualStringCase(t, testCases, 0, run)
 }
-// https://atcoder.jp/contests/abc250/tasks/abc250_e

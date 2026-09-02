@@ -1,82 +1,75 @@
 package main
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // github.com/EndlessCheng/codeforces-go
 func maxNumOfSubstrings(s string) (ans []string) {
+	// 记录每种字母的出现位置
 	pos := [26][]int{}
 	for i, b := range s {
-		pos[b-'a'] = append(pos[b-'a'], i)
+		b -= 'a'
+		pos[b] = append(pos[b], i)
 	}
-	var g, rg [26][]int
-	for i, pi := range pos {
-		if pi == nil {
+
+	// 构建有向图
+	g := [26][]int{}
+	for i, p := range pos {
+		if p == nil {
 			continue
 		}
-		for j, pj := range pos {
-			if pj == nil || i == j {
+		l, r := p[0], p[len(p)-1]
+		for j, q := range pos {
+			if j == i {
 				continue
 			}
-			if l := sort.SearchInts(pj, pi[0]); l < len(pj) && pi[len(pi)-1] > pj[l] {
+			k := sort.SearchInts(q, l)
+			// [l,r] 包含第 j 个小写字母
+			if k < len(q) && q[k] <= r {
 				g[i] = append(g[i], j)
-				rg[j] = append(rg[j], i)
 			}
 		}
 	}
 
-	vs := make([]int, 0, 26)
+	// 遍历有向图
 	vis := [26]bool{}
+	var l, r int
 	var dfs func(int)
-	dfs = func(v int) {
-		vis[v] = true
-		for _, w := range g[v] {
-			if !vis[w] {
-				dfs(w)
+	dfs = func(x int) {
+		vis[x] = true
+		p := pos[x]
+		l = min(l, p[0]) // 合并区间
+		r = max(r, p[len(p)-1])
+		for _, y := range g[x] {
+			if !vis[y] {
+				dfs(y)
 			}
-		}
-		vs = append(vs, v)
-	}
-	for i, ps := range pos {
-		if ps != nil && !vis[i] {
-			dfs(i)
 		}
 	}
 
-	vis = [26]bool{}
-	var comp []int
-	var rdfs func(int)
-	rdfs = func(v int) {
-		vis[v] = true
-		comp = append(comp, v)
-		for _, w := range rg[v] {
-			if !vis[w] {
-				rdfs(w)
-			}
+	type pair struct{ l, r int }
+	intervals := []pair{}
+	for i, p := range pos {
+		if p == nil {
+			continue
 		}
+		// 如果要包含第 i 个小写字母，最终得到的区间是什么？
+		vis = [26]bool{}
+		l, r = len(s), 0
+		dfs(i)
+		intervals = append(intervals, pair{l, r})
 	}
-o:
-	for i := len(vs) - 1; i >= 0; i-- {
-		if v := vs[i]; !vis[v] {
-			comp = []int{}
-			rdfs(v)
-			for _, v := range comp {
-				for _, w := range g[v] {
-					if !vis[w] {
-						continue o
-					}
-				}
-			}
-			v0 := comp[0]
-			l, r := pos[v0][0], pos[v0][len(pos[v0])-1]
-			for _, v := range comp[1:] {
-				if p := pos[v][0]; p < l {
-					l = p
-				}
-				if p := pos[v][len(pos[v])-1]; p > r {
-					r = p
-				}
-			}
-			ans = append(ans, s[l:r+1])
+
+	// 435. 无重叠区间
+	// 直接计算最多能选多少个区间
+	slices.SortFunc(intervals, func(a, b pair) int { return a.r - b.r })
+	preR := -1
+	for _, p := range intervals {
+		if p.l > preR {
+			ans = append(ans, s[p.l:p.r+1])
+			preR = p.r
 		}
 	}
 	return

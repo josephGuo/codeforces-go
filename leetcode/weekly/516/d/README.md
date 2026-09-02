@@ -69,12 +69,9 @@ class Solution {
         long[] sum = new long[n + 1];
         Map<Integer, Long> hash = new HashMap<>();
         for (int i = 0; i < n; i++) {
-            int x = nums[i];
             // 把 nums[i] 映射成一个随机的 long
-            if (!hash.containsKey(x)) {
-                hash.put(x, random.nextLong());
-            }
-            sum[i + 1] = sum[i] ^ hash.get(x);
+            long randVal = hash.computeIfAbsent(nums[i], _ -> random.nextLong());
+            sum[i + 1] = sum[i] ^ randVal;
         }
 
         int[] l1 = calcLeft(nums, k + 1);
@@ -331,12 +328,9 @@ class Solution {
         long[] sum = new long[n + 1];
         Map<Integer, Long> hash = new HashMap<>();
         for (int i = 0; i < n; i++) {
-            int x = nums[i];
             // 把 nums[i] 映射成一个随机的 long
-            if (!hash.containsKey(x)) {
-                hash.put(x, random.nextLong());
-            }
-            sum[i + 1] = sum[i] ^ hash.get(x);
+            long randVal = hash.computeIfAbsent(nums[i], _ -> random.nextLong());
+            sum[i + 1] = sum[i] ^ randVal;
         }
 
         // 离线询问：按照右端点分组

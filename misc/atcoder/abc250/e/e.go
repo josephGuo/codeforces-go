@@ -4,45 +4,42 @@ import (
 	"bufio"
 	. "fmt"
 	"io"
+	"math/rand/v2"
 	"os"
 )
 
-// https://space.bilibili.com/206214
-func run(_r io.Reader, _w io.Writer) {
-	in := bufio.NewReader(_r)
+// https://github.com/EndlessCheng
+func run(in io.Reader, _w io.Writer) {
 	out := bufio.NewWriter(_w)
 	defer out.Flush()
-
-	var n, v, q, x, y int
+	var n, q, x, y int
 	Fscan(in, &n)
-	a := make([]int, n+1)
-	id := map[int]int{}
-	for i := 1; i <= n; i++ {
-		Fscan(in, &v)
-		if id[v] == 0 {
-			id[v] = len(id) + 1
+	mp := map[int]uint{}
+
+	f := func() []uint {
+		s := make([]uint, n+1)
+		vis := map[int]bool{}
+		for i := range n {
+			Fscan(in, &x)
+			s[i+1] = s[i]
+			if !vis[x] {
+				vis[x] = true
+				if mp[x] == 0 {
+					mp[x] = rand.Uint()
+				}
+				s[i+1] ^= mp[x]
+			}
 		}
-		a[i] = max(a[i-1], id[v])
+		return s
 	}
 
-	b := make([]int, n+1)
-	set := map[int]struct{}{}
-	for i, mx := 1, 0; i <= n; i++ {
-		Fscan(in, &v)
-		v = id[v]
-		if v == 0 {
-			mx = 1e9
-		}
-		mx = max(mx, v)
-		set[v] = struct{}{}
-		if mx == len(set) {
-			b[i] = mx
-		}
-	}
+	sa := f()
+	sb := f()
 
-	for Fscan(in, &q); q > 0; q-- {
+	Fscan(in, &q)
+	for range q {
 		Fscan(in, &x, &y)
-		if a[x] == b[y] {
+		if sa[x] == sb[y] {
 			Fprintln(out, "Yes")
 		} else {
 			Fprintln(out, "No")
@@ -50,11 +47,4 @@ func run(_r io.Reader, _w io.Writer) {
 	}
 }
 
-func main() { run(os.Stdin, os.Stdout) }
-
-func max(a, b int) int {
-	if b > a {
-		return b
-	}
-	return a
-}
+func main() { run(bufio.NewReader(os.Stdin), os.Stdout) }
