@@ -117,17 +117,17 @@ func (t *fft) idft(a []complex128) {
 // 关于滑动窗口点积，见后面
 func polyConvFFT(a, b []int) []int {
 	n, m := len(a), len(b)
-	limit := 1 << bits.Len(uint(n+m-1))
-	A := make([]complex128, limit)
+	k := 1 << bits.Len(uint(n+m-1)) // 避免卷积混叠
+	A := make([]complex128, k)
 	for i, v := range a {
 		A[i] = complex(float64(v), 0)
 	}
-	B := make([]complex128, limit)
+	B := make([]complex128, k)
 	for i, v := range b {
 		B[i] = complex(float64(v), 0)
 	}
 
-	t := newFFT(limit)
+	t := newFFT(k)
 	t.dft(A)
 	t.dft(B)
 	for i := range A {
@@ -215,6 +215,65 @@ func polyConvFFTs(coefs [][]int) []int {
 		return coefs[0]
 	}
 	return polyConvFFT(polyConvFFTs(coefs[:n/2]), polyConvFFTs(coefs[n/2:]))
+}
+
+func (t *fft) fft2(a [][]complex128, f func([]complex128)) {
+	for _, row := range a {
+		f(row)
+	}
+
+	n := len(a)
+	tmp := make([]complex128, n)
+	for j := range n {
+		for i, row := range a {
+			tmp[i] = row[j]
+		}
+		f(tmp)
+		for i, row := range a {
+			row[j] = tmp[i]
+		}
+	}
+}
+
+// 计算方阵 mat1 和方阵 mat2 的二维卷积
+// 返回 conv，其中 conv[x][y] = sum_i sum_j mat1[i][j] * mat2[x-i][y-j]，其中 0 <= x,y <= n*2-2
+// LC835 https://leetcode.cn/problems/image-overlap/
+func polyConvFFT2(mat1, mat2 [][]int) [][]int {
+	n := len(mat1)
+	n2 := n*2 - 1
+	size := 1 << bits.Len(uint(n2))
+
+	a := make([][]complex128, size)
+	b := make([][]complex128, size)
+	for i := range a {
+		a[i] = make([]complex128, size)
+		b[i] = make([]complex128, size)
+	}
+	for i, row := range mat1 {
+		for j, x := range row {
+			a[i][j] = complex(float64(x), 0)
+			b[i][j] = complex(float64(mat2[i][j]), 0)
+		}
+	}
+
+	f := newFFT(size)
+	f.fft2(a, f.dft)
+	f.fft2(b, f.dft)
+	for i, row := range b {
+		for j, x := range row {
+			a[i][j] *= x
+		}
+	}
+	f.fft2(a, f.idft)
+
+	conv := make([][]int, n2)
+	for i, row := range a[:n2] {
+		conv[i] = make([]int, n2)
+		for j, c := range row[:n2] {
+			conv[i][j] = int(math.Round(real(c)))
+		}
+	}
+	return conv
 }
 
 // 有关快速数论变换（NTT）以及更多多项式运算的内容见 math_ntt.go

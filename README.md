@@ -138,6 +138,8 @@
     - 常用恒等式
     - 容斥原理
   - [快速傅里叶变换 FFT math_fft.go](/copypasta/math_fft.go)
+    - 分治 FFT
+    - 二维 FFT
   - [快速数论变换 NTT math_ntt.go](/copypasta/math_ntt.go)
     - 包含多项式全家桶（求逆、开方等等）
   - [快速沃尔什变换 FWT math_fwt.go](/copypasta/math_fwt.go)
