@@ -128,8 +128,8 @@ func maxValidSplits(nums []int) int {
 	// 不删任何数
 	allGcd := sufGcd[0]
 	p := sort.Search(n, func(i int) bool { return preGcd[i] == allGcd }) // [p,n-1] 都是 allGcd
-	q := sort.SearchInts(sufGcd[:n], allGcd+1) - 1 // [0,q] 都是 allGcd
-	ans := max(q-p, 0) // 满足 i >= p 且 i+1 <= q 的 i 的个数
+	q := sort.SearchInts(sufGcd[:n], allGcd+1) - 1                       // [0,q] 都是 allGcd
+	ans := max(q-p, 0)                                                   // 满足 i >= p 且 i+1 <= q 的 i 的个数
 
 	for i := range n {
 		if i > 0 && preGcd[i] == preGcd[i-1] {
@@ -137,12 +137,20 @@ func maxValidSplits(nums []int) int {
 		}
 
 		// 删除 nums[i]
-		newG := sufGcd[i+1]
+		preG := 0
 		if i > 0 {
-			newG = gcd(preGcd[i-1], sufGcd[i+1])
+			preG = preGcd[i-1]
 		}
-
-		if newG == allGcd {
+		sufG := 0
+		if i < n-1 {
+			sufG = sufGcd[i+1]
+		}
+		newG := 0
+		if sufG > allGcd && preG%sufG == 0 { // 兼容 pre_g 为 0 的情况
+			newG = sufG
+		} else if preG > allGcd && sufG%preG == 0 { // 兼容 suf_g 为 0 的情况
+			newG = preG
+		} else {
 			continue
 		}
 
@@ -172,7 +180,7 @@ func maxValidSplits(nums []int) int {
 
 		res := q - p
 		if p <= i && i < q {
-			res--
+			res-- // 因为删除了 nums[i]，少一个有效分割
 		}
 		ans = max(ans, res)
 		break
