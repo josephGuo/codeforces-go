@@ -90,7 +90,7 @@ func cf2223C(in io.Reader, _w io.Writer) {
 	}
 }
 
-//func main() { cf2223C(bufio.NewReader(os.Stdin), os.Stdout) }
+//func main() { cf2223C(os.Stdin, os.Stdout) }
 
 func gcd23(a, b int) int {
 	for a != 0 {
