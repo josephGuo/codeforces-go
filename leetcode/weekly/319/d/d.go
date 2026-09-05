@@ -67,16 +67,17 @@ func maxPalindromes(s string, k int) (ans int) {
 	halfLen[1] = 1
 
 	// boxR 表示当前右边界下标最大的回文子串的右边界下标+1
-	// boxM 为该回文子串的中心位置，二者的关系为 r=mid+halfLen[mid]
+	// boxM 为该回文子串的中心位置
+	// 二者的关系为 boxR = boxM + halfLen[boxM]
 	boxM, boxR := 0, 0
 	for i := 2; i < len(halfLen); i++ {
 		hl := 1
 		if i < boxR {
 			// 记 i 关于 boxM 的对称位置 i'=boxM*2-i
-			// 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围（即 i+halfLen[i'] >= boxR）
+			// 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围
 			// 则 halfLen[i] 应先初始化为已知的回文半径 boxR-i，然后再继续暴力匹配
 			// 否则 halfLen[i] 与 halfLen[i'] 相等
-			hl = min(halfLen[boxM*2-i], boxR-i)
+			hl = min(boxR-i, halfLen[boxM*2-i])
 		}
 
 		// 暴力扩展

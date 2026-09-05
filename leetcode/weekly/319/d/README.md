@@ -333,16 +333,17 @@ class Solution:
         half_len[1] = 1
 
         # box_r 表示当前右边界下标最大的回文子串的右边界下标+1
-        # box_m 为该回文子串的中心位置，二者的关系为 r=mid+half_len[mid]
+        # box_m 为该回文子串的中心位置
+        # 二者的关系为 box_r = box_m + half_len[box_m]
         box_m = box_r = 0
         for i in range(2, len(half_len)):
             hl = 1
             if i < box_r:
                 # 记 i 关于 box_m 的对称位置 i'=box_m*2-i
-                # 若以 i' 为中心的最长回文子串范围超出了以 box_m 为中心的回文串的范围（即 i+half_len[i'] >= box_r）
+                # 若以 i' 为中心的最长回文子串范围超出了以 box_m 为中心的回文串的范围
                 # 则 half_len[i] 应先初始化为已知的回文半径 box_r-i，然后再继续暴力匹配
                 # 否则 half_len[i] 与 half_len[i'] 相等
-                hl = min(half_len[box_m * 2 - i], box_r - i)
+                hl = min(box_r - i, half_len[box_m * 2 - i])
 
             # 暴力扩展
             # 算法的复杂度取决于这部分执行的次数
@@ -404,17 +405,18 @@ class Solution {
         halfLen[1] = 1;
 
         // boxR 表示当前右边界下标最大的回文子串的右边界下标+1
-        // boxM 为该回文子串的中心位置，二者的关系为 r=mid+halfLen[mid]
+        // boxM 为该回文子串的中心位置
+        // 二者的关系为 boxR = boxM + halfLen[boxM]
         int boxM = 0;
         int boxR = 0;
         for (int i = 2; i < halfLen.length; i++) {
             int hl = 1;
             if (i < boxR) {
                 // 记 i 关于 boxM 的对称位置 i'=boxM*2-i
-                // 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围（即 i+halfLen[i'] >= boxR）
+                // 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围
                 // 则 halfLen[i] 应先初始化为已知的回文半径 boxR-i，然后再继续暴力匹配
                 // 否则 halfLen[i] 与 halfLen[i'] 相等
-                hl = Math.min(halfLen[boxM * 2 - i], boxR - i);
+                hl = Math.min(boxR - i, halfLen[boxM * 2 - i]);
             }
 
             // 暴力扩展
@@ -480,16 +482,17 @@ public:
         half_len[1] = 1;
 
         // box_r 表示当前右边界下标最大的回文子串的右边界下标+1
-        // box_m 为该回文子串的中心位置，二者的关系为 r=mid+half_len[mid]
+        // box_m 为该回文子串的中心位置
+        // 二者的关系为 box_r = box_m + half_len[box_m]
         int box_m = 0, box_r = 0;
         for (int i = 2; i < half_len.size(); i++) {
             int hl = 1;
             if (i < box_r) {
                 // 记 i 关于 box_m 的对称位置 i'=box_m*2-i
-                // 若以 i' 为中心的最长回文子串范围超出了以 box_m 为中心的回文串的范围（即 i+half_len[i'] >= box_r）
+                // 若以 i' 为中心的最长回文子串范围超出了以 box_m 为中心的回文串的范围
                 // 则 half_len[i] 应先初始化为已知的回文半径 box_r-i，然后再继续暴力匹配
                 // 否则 half_len[i] 与 half_len[i'] 相等
-                hl = min(half_len[box_m * 2 - i], box_r - i);
+                hl = min(box_r - i, half_len[box_m * 2 - i]);
             }
 
             // 暴力扩展
@@ -557,16 +560,17 @@ func maxPalindromes(s string, k int) (ans int) {
 	halfLen[1] = 1
 
 	// boxR 表示当前右边界下标最大的回文子串的右边界下标+1
-	// boxM 为该回文子串的中心位置，二者的关系为 r=mid+halfLen[mid]
+	// boxM 为该回文子串的中心位置
+	// 二者的关系为 boxR = boxM + halfLen[boxM]
 	boxM, boxR := 0, 0
 	for i := 2; i < len(halfLen); i++ {
 		hl := 1
 		if i < boxR {
 			// 记 i 关于 boxM 的对称位置 i'=boxM*2-i
-			// 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围（即 i+halfLen[i'] >= boxR）
+			// 若以 i' 为中心的最长回文子串范围超出了以 boxM 为中心的回文串的范围
 			// 则 halfLen[i] 应先初始化为已知的回文半径 boxR-i，然后再继续暴力匹配
 			// 否则 halfLen[i] 与 halfLen[i'] 相等
-			hl = min(halfLen[boxM*2-i], boxR-i)
+			hl = min(boxR-i, halfLen[boxM*2-i])
 		}
 
 		// 暴力扩展
