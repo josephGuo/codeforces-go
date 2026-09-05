@@ -331,9 +331,10 @@ class Solution:
         # 即 [i-half_len[i]+1, i+half_len[i]-1] 是 t 上的一个回文子串
         half_len = [0] * (len(t) - 2)
         half_len[1] = 1
+
         # box_r 表示当前右边界下标最大的回文子串的右边界下标+1
         # box_m 为该回文子串的中心位置，二者的关系为 r=mid+half_len[mid]
-        box_m = box_r = max_i = 0
+        box_m = box_r = 0
         for i in range(2, len(half_len)):
             hl = 1
             if i < box_r:
@@ -402,8 +403,6 @@ class Solution {
         int[] halfLen = new int[t.length - 2];
         halfLen[1] = 1;
 
-        // maxI 记录最长回文子串在 halfLen 中的下标
-        int maxI = 0;
         // boxR 表示当前右边界下标最大的回文子串的右边界下标+1
         // boxM 为该回文子串的中心位置，二者的关系为 r=mid+halfLen[mid]
         int boxM = 0;
@@ -479,9 +478,10 @@ public:
         // 即 [i-half_len[i]+1, i+half_len[i]-1] 是 t 上的一个回文子串
         vector<int> half_len(t.size() - 2);
         half_len[1] = 1;
+
         // box_r 表示当前右边界下标最大的回文子串的右边界下标+1
         // box_m 为该回文子串的中心位置，二者的关系为 r=mid+half_len[mid]
-        int box_m = 0, box_r = 0, max_i = 0;
+        int box_m = 0, box_r = 0;
         for (int i = 2; i < half_len.size(); i++) {
             int hl = 1;
             if (i < box_r) {
