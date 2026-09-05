@@ -420,6 +420,9 @@ class Solution {
             }
 
             // 暴力扩展
+            // 算法的复杂度取决于这部分执行的次数
+            // 由于扩展之后 boxR 必然会更新（右移），且扩展的的次数就是 boxR 右移的次数
+            // 因此算法的复杂度 = O(t.length) = O(n)
             while (t[i - hl] == t[i + hl]) {
                 hl++;
                 boxM = i;
@@ -452,7 +455,7 @@ class Solution {
         // t 中回文子串的长度为 hl*2-1
         // 由于其中 '#' 的数量总是比字母的数量多 1
         // 因此其在 s 中对应的回文子串的长度为 hl-1
-		return halfLen[l + r + 2] > r - l; // halfLen[l+r+2]-1 >= r-l
+		return halfLen[l + r + 2] > r - l + 1; // halfLen[l+r+2]-1 >= r-l+1
     }
 }
 ```
@@ -514,7 +517,7 @@ public:
             // t 中回文子串的长度为 hl*2-1
             // 由于其中 '#' 的数量总是比字母的数量多 1
             // 因此其在 s 中对应的回文子串的长度为 hl-1
-            return half_len[l + r + 2] > r - l; // half_len[l+r+2]-1 >= r-l
+            return half_len[l + r + 2] > r - l + 1; // half_len[l+r+2]-1 >= r-l+1
         };
 
         int n = s.size();
