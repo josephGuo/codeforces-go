@@ -61,6 +61,8 @@ func minCost(grid [][]int, k0 int) int {
 	return -1
 }
 
+//
+
 func minCost1(grid [][]int, k0 int) (ans int) {
 	m, n := len(grid), len(grid[0])
 	dis := make([][][][4]int, k0+1)
@@ -77,7 +79,11 @@ func minCost1(grid [][]int, k0 int) (ans int) {
 	}
 
 	// 初始方向可以向右（1）或向下（3）
-	h := hp{{grid[0][0], k0, 0, 0, 1}, {grid[0][0], k0, 0, 0, 3}}
+	v := grid[0][0]
+	h := hp{{v, k0, 0, 0, 1}, {v, k0, 0, 0, 3}}
+	dis[k0][0][0][1] = v
+	dis[k0][0][0][3] = v
+
 	for len(h) > 0 {
 		top := heap.Pop(&h).(tuple)
 		d, k, i, j, idx := top.dis, top.k, top.i, top.j, top.idx

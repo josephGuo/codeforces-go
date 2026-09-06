@@ -11,8 +11,6 @@
 
 下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
 
-其他语言稍后添加。
-
 ```py [sol-Python3]
 class Solution:
     def minCost(self, grid: list[list[int]], k0: int) -> int:
@@ -22,6 +20,8 @@ class Solution:
 
         # 初始方向可以向右（1）或向下（3）
         h = [(grid[0][0], k0, 0, 0, 1), (grid[0][0], k0, 0, 0, 3)]
+        dis[k0][0][0][1] = dis[k0][0][0][3] = grid[0][0]
+
         while h:
             d, k, i, j, idx = heappop(h)
             if i == m - 1 and j == n - 1:
@@ -44,11 +44,110 @@ class Solution:
 ```
 
 ```java [sol-Java]
+class Solution {
+    private final static int[][] DIRS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}}; // 左右上下
 
+    public int minCost(int[][] grid, int k0) {
+        int m = grid.length;
+        int n = grid[0].length;
+        int[][][][] dis = new int[k0 + 1][m][n][4];
+        for (int[][][] a : dis) {
+            for (int[][] b : a) {
+                for (int[] c : b) {
+                    Arrays.fill(c, Integer.MAX_VALUE / 2);
+                }
+            }
+        }
+        PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> a[0] - b[0]);
+
+        // 初始方向可以向右（1）或向下（3）
+        pq.offer(new int[]{grid[0][0], k0, 0, 0, 1});
+        pq.offer(new int[]{grid[0][0], k0, 0, 0, 3});
+        dis[k0][0][0][1] = dis[k0][0][0][3] = grid[0][0];
+
+        while (!pq.isEmpty()) {
+            int[] top = pq.poll();
+            int d = top[0];
+            int k = top[1];
+            int i = top[2];
+            int j = top[3];
+            int idx = top[4];
+            if (i == m - 1 && j == n - 1) {
+                return d;
+            }
+            if (d > dis[k][i][j][idx]) {
+                continue;
+            }
+            for (int newIdx = 0; newIdx < 4; newIdx++) {
+                int x = i + DIRS[newIdx][0];
+                int y = j + DIRS[newIdx][1];
+                if (0 <= x && x < m && 0 <= y && y < n) {
+                    int newK = k;
+                    if (newIdx != idx) {
+                        if (k == 0) {
+                            continue;
+                        }
+                        newK--;
+                    }
+                    int newD = d + grid[x][y];
+                    if (newD < dis[newK][x][y][newIdx]) {
+                        dis[newK][x][y][newIdx] = newD;
+                        pq.offer(new int[]{newD, newK, x, y, newIdx});
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+}
 ```
 
 ```cpp [sol-C++]
+class Solution {
+    static constexpr int DIRS[4][2] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}}; // 左右上下
 
+public:
+    int minCost(vector<vector<int>>& grid, int k0) {
+        const int INF = INT_MAX / 2;
+        int m = grid.size(), n = grid[0].size();
+        vector dis(k0 + 1, vector(m, vector<array<int, 4>>(n, {INF, INF, INF, INF})));
+        priority_queue<tuple<int, int, int, int, int>, vector<tuple<int, int, int, int, int>>, greater<>> pq;
+        // 初始方向可以向右（1）或向下（3）
+        pq.emplace(grid[0][0], k0, 0, 0, 1);
+        pq.emplace(grid[0][0], k0, 0, 0, 3);
+        dis[k0][0][0][1] = dis[k0][0][0][3] = grid[0][0];
+
+        while (!pq.empty()) {
+            auto [d, k, i, j, idx] = pq.top();
+            pq.pop();
+            if (i == m - 1 && j == n - 1) {
+                return d;
+            }
+            if (d > dis[k][i][j][idx]) {
+                continue;
+            }
+            for (int new_idx = 0; new_idx < 4; new_idx++) {
+                int x = i + DIRS[new_idx][0];
+                int y = j + DIRS[new_idx][1];
+                if (0 <= x && x < m && 0 <= y && y < n) {
+                    int new_k = k;
+                    if (new_idx != idx) {
+                        if (k == 0) {
+                            continue;
+                        }
+                        new_k--;
+                    }
+                    int new_d = d + grid[x][y];
+                    if (new_d < dis[new_k][x][y][new_idx]) {
+                        dis[new_k][x][y][new_idx] = new_d;
+                        pq.emplace(new_d, new_k, x, y, new_idx);
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+};
 ```
 
 ```go [sol-Go]
@@ -70,7 +169,11 @@ func minCost(grid [][]int, k0 int) int {
 	}
 
 	// 初始方向可以向右（1）或向下（3）
-	h := hp{{grid[0][0], k0, 0, 0, 1}, {grid[0][0], k0, 0, 0, 3}}
+	v := grid[0][0]
+	h := hp{{v, k0, 0, 0, 1}, {v, k0, 0, 0, 3}}
+	dis[k0][0][0][1] = v
+	dis[k0][0][0][3] = v
+
 	for len(h) > 0 {
 		top := heap.Pop(&h).(tuple)
 		d, k, i, j, idx := top.dis, top.k, top.i, top.j, top.idx
@@ -128,7 +231,7 @@ class Solution:
         dirs = ((0, -1), (0, 1), (-1, 0), (1, 0))  # 左右上下
         m, n = len(grid), len(grid[0])
 
-        @cache
+        @cache  # 缓存装饰器，避免重复计算 dfs（一行代码实现记忆化）
         def dfs(k: int, i: int, j: int, idx: int) -> int:
             if i == j == 0:
                 return grid[0][0]
@@ -149,6 +252,106 @@ class Solution:
         return -1 if ans == inf else ans
 ```
 
+```java [sol-Java]
+class Solution {
+    private final static int[][] DIRS = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}}; // 左右上下
+
+    public int minCost(int[][] grid, int k0) {
+        int m = grid.length;
+        int n = grid[0].length;
+        int[][][][] memo = new int[k0 + 1][m][n][4];
+        for (int[][][] a : memo) {
+            for (int[][] b : a) {
+                for (int[] c : b) {
+                    Arrays.fill(c, -1); // -1 表示该状态没有计算过
+                }
+            }
+        }
+
+        int ans = Math.min(dfs(k0, m - 1, n - 1, 0, grid, memo), dfs(k0, m - 1, n - 1, 2, grid, memo));
+        return ans < Integer.MAX_VALUE / 2 ? ans : -1;
+    }
+
+    private int dfs(int k, int i, int j, int idx, int[][] grid, int[][][][] memo) {
+        if (i == 0 && j == 0) {
+            return grid[0][0];
+        }
+
+        int[] p = memo[k][i][j];
+        if (p[idx] != -1) { // 之前计算过
+            return p[idx];
+        }
+
+        int m = grid.length;
+        int n = grid[0].length;
+        int res = Integer.MAX_VALUE / 2;
+        for (int newIdx = 0; newIdx < 4; newIdx++) {
+            int x = i + DIRS[newIdx][0];
+            int y = j + DIRS[newIdx][1];
+            if (0 <= x && x < m && 0 <= y && y < n) {
+                int newK = k;
+                if (newIdx != idx) {
+                    if (k == 0) {
+                        continue;
+                    }
+                    newK--;
+                }
+                res = Math.min(res, dfs(newK, x, y, newIdx, grid, memo));
+            }
+        }
+        res += grid[i][j];
+
+        p[idx] = res; // 记忆化
+        return res;
+    }
+}
+```
+
+```cpp [sol-C++]
+class Solution {
+    static constexpr int DIRS[4][2] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}}; // 左右上下
+
+public:
+    int minCost(vector<vector<int>>& grid, int k0) {
+        int m = grid.size(), n = grid[0].size();
+        vector memo(k0 + 1, vector(m, vector<array<int, 4>>(n, {-1, -1, -1, -1})));
+
+        auto dfs = [&](this auto&& dfs, int k, int i, int j, int idx) -> int {
+            if (i == 0 && j == 0) {
+                return grid[0][0];
+            }
+
+            // 注意这里是引用
+            int& res = memo[k][i][j][idx];
+            if (res != -1) { // 之前计算过
+                return res;
+            }
+
+            res = INT_MAX / 2;
+            for (int new_idx = 0; new_idx < 4; new_idx++) {
+                int x = i + DIRS[new_idx][0];
+                int y = j + DIRS[new_idx][1];
+                if (0 <= x && x < m && 0 <= y && y < n) {
+                    int new_k = k;
+                    if (new_idx != idx) {
+                        if (k == 0) {
+                            continue;
+                        }
+                        new_k--;
+                    }
+                    res = min(res, dfs(new_k, x, y, new_idx));
+                }
+            }
+            res += grid[i][j];
+            return res;
+        };
+
+        int ans = min(dfs(k0, m - 1, n - 1, 0), dfs(k0, m - 1, n - 1, 2));
+        return ans < INT_MAX / 2 ? ans : -1;
+    }
+};
+```
+
 ```go [sol-Go]
 var dirs = []struct{ x, y int }{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} // 左右上下
 
@@ -161,7 +364,7 @@ func minCost(grid [][]int, k0 int) int {
 			memo[i][j] = make([][4]int, n)
 			for p := range memo[i][j] {
 				for q := range memo[i][j][p] {
-					memo[i][j][p][q] = -1
+					memo[i][j][p][q] = -1 // -1 表示该状态没有计算过
 				}
 			}
 		}
@@ -174,7 +377,7 @@ func minCost(grid [][]int, k0 int) int {
 		}
 
 		p := &memo[k][i][j][idx]
-		if *p != -1 {
+		if *p != -1 { // 之前计算过
 			return *p
 		}
 
@@ -194,7 +397,7 @@ func minCost(grid [][]int, k0 int) int {
 		}
 		res += grid[i][j]
 
-		*p = res
+		*p = res // 记忆化
 		return res
 	}
 
