@@ -6,8 +6,6 @@
 
 注意 $\textit{nums} + \textit{nums}$ 的第一个长为 $n$ 的子数组和最后一个长为 $n$ 的子数组是同一个，为避免重复统计，不考虑最后一个长为 $n$ 的子数组。
 
-下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
-
 ```py [sol-Python3]
 class Solution:
     def countGoodRotations(self, nums: list[int]) -> int:

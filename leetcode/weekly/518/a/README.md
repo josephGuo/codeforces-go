@@ -8,7 +8,7 @@
 
 此外，$s+s$ 的第一个长为 $n$ 的子串和最后一个长为 $n$ 的子串是同一个，为避免重复统计，不考虑最后一个长为 $n$ 的子串。
 
-下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
+[本题视频讲解](https://www.bilibili.com/video/BV18sbp6xEeE/)，欢迎点赞关注~
 
 ```py [sol-Python3]
 class Solution:

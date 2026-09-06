@@ -9,8 +9,6 @@
 - 如果前进方向与 $\textit{idx}$ 相同，那么 $k$ 不变。
 - 否则，必须满足 $k>0$，然后把 $k$ 减少一。
 
-下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
-
 ```py [sol-Python3]
 class Solution:
     def minCost(self, grid: list[list[int]], k0: int) -> int:

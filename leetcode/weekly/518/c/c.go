@@ -1,7 +1,7 @@
 package main
 
 // https://space.bilibili.com/206214
-func countGroups(position, speed []int, distance int) int {
+func countGroups1(position, speed []int, distance int) int {
 	st := speed[:0] // 原地栈
 	for i, p := range position {
 		// 找到这一组的最右侧机器人
@@ -14,4 +14,17 @@ func countGroups(position, speed []int, distance int) int {
 		}
 	}
 	return len(st)
+}
+
+func countGroups(position, speed []int, distance int) int {
+	n := len(speed)
+	mn := speed[n-1]
+	ans := 1
+	for i := n - 2; i >= 0; i-- {
+		if speed[i] <= mn && position[i+1]-position[i] > distance {
+			mn = speed[i]
+			ans++
+		}
+	}
+	return ans
 }

@@ -1,10 +1,12 @@
+## 方法一：正序遍历 + 栈
+
 首先，找出在 $t=0$ 时刻就合并的机器人：如果机器人 $i$ 满足 $i=n-1$ 或者 $\textit{position}[i+1] - \textit{position}[i] > \textit{distance}$，那么机器人 $i$ 是「最右侧机器人」。
 
 对于这些「最右侧机器人」，速度慢的机器人会在一定时间后与其左侧更快的机器人合并。我们可以把遍历过的机器人的速度保存在一个栈中，如果当前机器人的速度比栈顶小，那么栈顶机器人就会在一定时间后与当前机器人合并，于是弹出栈顶。反复直到栈为空，或者栈顶机器人的速度 $\le$ 当前机器人的速度。
 
 最后，从栈底到栈顶，机器人的速度是递增的（允许相邻相等），每个机器人都追不上其右边的机器人，所以相邻机器人的距离始终大于 $\textit{distance}$，无法合并。最终答案为栈的大小。
 
-下午两点 [B站@灵茶山艾府](https://space.bilibili.com/206214) 直播讲题，欢迎关注~
+[本题视频讲解](https://www.bilibili.com/video/BV18sbp6xEeE/?t=13m20s)，欢迎点赞关注~
 
 ```py [sol-Python3]
 class Solution:
@@ -105,6 +107,87 @@ func countGroups(position, speed []int, distance int) int {
 
 - 时间复杂度：$\mathcal{O}(n)$，其中 $n$ 是 $\textit{position}$ 的长度。虽然我们写了个二重循环，但每个元素至多入栈出栈各一次，所以二重循环的**总**循环次数是 $\mathcal{O}(n)$ 的，所以时间复杂度是 $\mathcal{O}(n)$。
 - 空间复杂度：$\mathcal{O}(n)$ 或 $\mathcal{O}(1)$。如果把输入的数组当作栈用，可以做到 $\mathcal{O}(1)$ 空间。
+
+## 方法二：倒序遍历
+
+速度小的机器人会把左边速度更大的机器人删除（合并）。
+
+于是倒序遍历，维护遍历过的「最右侧机器人」速度的最小值 $\textit{mn}$。
+
+- 如果当前机器人的速度比 $\textit{mn}$ 大，那它可以追上 $\textit{mn}$，不计入答案。
+- 否则答案加一，更新 $\textit{mn}$ 为当前机器人的速度。
+
+```py [sol-Python3]
+class Solution:
+    def countGroups(self, position: list[int], speed: list[int], distance: int) -> int:
+        mn = speed[-1]
+        ans = 1
+        for i in range(len(speed) - 2, -1, -1):
+            if speed[i] <= mn and position[i + 1] - position[i] > distance:
+                mn = speed[i]
+                ans += 1
+        return ans
+```
+
+```java [sol-Java]
+class Solution {
+    public int countGroups(int[] position, int[] speed, int distance) {
+        int n = speed.length;
+        int mn = speed[n - 1];
+        int ans = 1;
+        for (int i = n - 2; i >= 0; i--) {
+            if (speed[i] <= mn && position[i + 1] - position[i] > distance) {
+                mn = speed[i];
+                ans++;
+            }
+        }
+        return ans;
+    }
+}
+```
+
+```cpp [sol-C++]
+class Solution {
+public:
+    int countGroups(vector<int>& position, vector<int>& speed, int distance) {
+        int n = speed.size();
+        int mn = speed[n - 1];
+        int ans = 1;
+        for (int i = n - 2; i >= 0; i--) {
+            if (speed[i] <= mn && position[i + 1] - position[i] > distance) {
+                mn = speed[i];
+                ans++;
+            }
+        }
+        return ans;
+    }
+};
+```
+
+```go [sol-Go]
+func countGroups(position, speed []int, distance int) int {
+	n := len(speed)
+	mn := speed[n-1]
+	ans := 1
+	for i := n - 2; i >= 0; i-- {
+		if speed[i] <= mn && position[i+1]-position[i] > distance {
+			mn = speed[i]
+			ans++
+		}
+	}
+	return ans
+}
+```
+
+#### 复杂度分析
+
+- 时间复杂度：$\mathcal{O}(n)$，其中 $n$ 是 $\textit{position}$ 的长度。
+- 空间复杂度：$\mathcal{O}(1)$。
+
+## 相似题目
+
+- [853. 车队](https://leetcode.cn/problems/car-fleet/)
+- [1776. 车队 II](https://leetcode.cn/problems/car-fleet-ii/)
 
 ## 专题训练
 
