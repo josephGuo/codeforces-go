@@ -106,194 +106,72 @@ func maxProfit(prices []int, strategy []int, k int) int64 {
 
 **前置知识**：[定长滑动窗口](https://leetcode.cn/problems/maximum-number-of-vowels-in-a-substring-of-given-length/solutions/2809359/tao-lu-jiao-ni-jie-jue-ding-chang-hua-ch-fzfo/)。
 
-设不修改时的利润为 $\textit{total}$。修改后，利润（相比不修改）增加了 $\textit{sum}$。所有窗口的 $\textit{sum}$ 的最大值为 $\textit{maxSum}$。那么答案为 $\textit{total} + \max(\textit{maxSum},0)$。这里可能出现 $\textit{maxSum} < 0$ 的情况，此时不修改更好，也就是与 $0$ 取最大值。
+设 $\textit{total}$ 为不修改时的总利润。
 
-对于价格 $\textit{p}$，如果修改前策略是 $x$，修改后策略是 $y$，那么利润增加了 $p\cdot(y-x)$。比如原来买入，现在持有（不买入），那么利润增加了 $p\cdot (0 - (-1)) = p$。又比如原来买入，现在卖出，那么利润增加了 $p\cdot (1 - (-1)) = 2p$。
+如果修改，枚举修改的位置，视作两个长度均为 $k/2$ 的**定长滑动窗口**紧挨着同时向右滑动。计算修改操作可以让总利润相比 $\textit{total}$ **额外增加多少**。
 
-下面来计算每个窗口的 $\textit{sum}$。考察从 $[i-k,i-1]$ 向右滑到 $[i-k+1,i]$，$\textit{sum}$ 如何变化。
-
-先看窗口 $[i-k,i-1]$ 的 $\textit{sum}$，分为左右两部分：
-
-1. 左半为 $[i-k,i-k/2-1]$。修改前的策略为 $\textit{strategy}[j]$，修改后的策略为 $0$，所以利润增加了 $\textit{prices}[j]\cdot (-\textit{strategy}[j])$ 之和，其中 $j$ 在左半中。
-2. 右半为 $[i-k/2,i-1]$。修改前的策略为 $\textit{strategy}[j]$，修改后的策略为 $1$，所以利润增加了 $\textit{prices}[j]\cdot (1-\textit{strategy}[j])$ 之和，其中 $j$ 在右半中。
-
-当窗口向右滑动时，有三个位置的元素发生了变化：
-
-1. $i$ 进入窗口（在右半），$\textit{sum}$ 增加了 $\textit{prices}[i]\cdot (1-\textit{strategy}[i])$。
-2. 下标为 $i-k/2$ 的元素从右半移到左半，交易策略从 $1$ 变成 $0$，所以 $\textit{sum}$ 减少了 $\textit{prices}[i-k/2]$。
-3. $i-k$ 离开窗口（离开前在左半），$\textit{sum}$ 减少了 $\textit{prices}[i-k]\cdot (-\textit{strategy}[i-k])$。
-
-## 写法一
-
-```py [sol-Python3]
-# 手写 max 更快
-max = lambda a, b: b if b > a else a
-
-class Solution:
-    def maxProfit(self, prices: List[int], strategy: List[int], k: int) -> int:
-        total = s = 0
-        # 计算第一个窗口的 s
-        for p, st in zip(prices[:k // 2], strategy[:k // 2]):
-            total += p * st
-            s -= p * st
-        for p, st in zip(prices[k // 2: k], strategy[k // 2: k]):
-            total += p * st
-            s += p * (1 - st)
-
-        max_s = max(s, 0)
-        # 向右滑动，计算后续窗口的 s
-        for i in range(k, len(prices)):
-            p, st = prices[i], strategy[i]
-            total += p * st
-            s += p * (1 - st) - prices[i - k // 2] + prices[i - k] * strategy[i - k]
-            max_s = max(max_s, s)
-        return total + max_s
-```
-
-```java [sol-Java]
-class Solution {
-    public long maxProfit(int[] prices, int[] strategy, int k) {
-        long total = 0, sum = 0;
-        // 计算第一个窗口的 sum
-        for (int i = 0; i < k / 2; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum -= p * s;
-        }
-        for (int i = k / 2; i < k; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum += p * (1 - s);
-        }
-
-        long maxSum = Math.max(sum, 0);
-        // 向右滑动，计算后续窗口的 sum
-        for (int i = k; i < prices.length; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum += p * (1 - s) - prices[i - k / 2] + prices[i - k] * strategy[i - k];
-            maxSum = Math.max(maxSum, sum);
-        }
-        return total + maxSum;
-    }
-}
-```
-
-```cpp [sol-C++]
-class Solution {
-public:
-    long long maxProfit(vector<int>& prices, vector<int>& strategy, int k) {
-        long long total = 0, sum = 0;
-        // 计算第一个窗口的 sum
-        for (int i = 0; i < k / 2; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum -= p * s;
-        }
-        for (int i = k / 2; i < k; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum += p * (1 - s);
-        }
-
-        long long max_sum = max(sum, 0LL);
-        // 向右滑动，计算后续窗口的 sum
-        for (int i = k; i < prices.size(); i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s;
-            sum += p * (1 - s) - prices[i - k / 2] + prices[i - k] * strategy[i - k];
-            max_sum = max(max_sum, sum);
-        }
-        return total + max_sum;
-    }
-};
-```
-
-```go [sol-Go]
-func maxProfit(prices, strategy []int, k int) int64 {
-	total, sum := 0, 0
-	// 计算第一个窗口的 sum
-	for i := range k / 2 {
-		p, s := prices[i], strategy[i]
-		total += p * s
-		sum -= p * s
-	}
-	for i := k / 2; i < k; i++ {
-		p, s := prices[i], strategy[i]
-		total += p * s
-		sum += p * (1 - s)
-	}
-
-	maxSum := max(sum, 0)
-	// 向右滑动，计算后续窗口的 sum
-	for i := k; i < len(prices); i++ {
-		p, s := prices[i], strategy[i]
-		total += p * s
-		sum += p*(1-s) - prices[i-k/2] + prices[i-k]*strategy[i-k]
-		maxSum = max(maxSum, sum)
-	}
-	return int64(total + maxSum)
-}
-```
-
-## 写法二
+- 对于左边的窗口，进入窗口的元素的交易策略从 $\textit{strategy}[i]$ 变成了 $0$，利润增加了 $(0-\textit{strategy}[i]) \cdot \textit{prices}[i]$。
+- 对于右边的窗口，进入窗口的元素的交易策略从 $\textit{strategy}[i]$ 变成了 $1$，利润增加了 $(1-\textit{strategy}[i]) \cdot \textit{prices}[i]$。
 
 ```py [sol-Python3]
 class Solution:
     def maxProfit(self, prices: List[int], strategy: List[int], k: int) -> int:
-        total = max_s = s = 0
-        for i, (p, st) in enumerate(zip(prices, strategy)):
-            total += p * st  # 不修改时的最大利润
+        total = extra = max_extra = 0
+        m = k // 2
+        for i, (s, p) in enumerate(zip(strategy, prices)):
+            total += s * p
+            if i < m:
+                continue
 
-            # 1. 下标为 i 的元素入右半，交易策略从 st 变成 1
-            s += p * (1 - st)  # 修改带来的额外利润
+            # 1. 入
+            extra -= strategy[i - m] * prices[i - m]  # 前 k/2 个元素的窗口
+            extra += (1 - s) * p  # 后 k/2 个元素的窗口
 
-            if i < k - 1:  # 尚未形成第一个窗口
-                # 在下一轮循环中，下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-                if i >= k // 2 - 1:  
-                    s -= prices[i - k // 2 + 1]
+            left = i - k + 1
+            if left < 0:  # 尚未形成第一个窗口
                 continue
 
             # 2. 更新
-            max_s = max(max_s, s)  # 修改带来的最大额外利润
+            max_extra = max(max_extra, extra)
 
-            # 3. 出，为下一个窗口做准备
-            # 下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-            # 下标为 i-k+1 的元素从左半离开窗口，交易策略从 0 恢复为 strategy[i-k+1]
-            s -= prices[i - k // 2 + 1] - prices[i - k + 1] * strategy[i - k + 1]
+            # 3. 出（计算方式和入相反）
+            extra += strategy[left] * prices[left]  # 前 k/2 个元素的窗口
+            extra -= (1 - strategy[left + m]) * prices[left + m]  # 后 k/2 个元素的窗口
 
-        return total + max_s
+        return total + max_extra
 ```
 
 ```java [sol-Java]
 class Solution {
     public long maxProfit(int[] prices, int[] strategy, int k) {
-        long total = 0, maxSum = 0, sum = 0;
+        long total = 0;
+        long extra = 0;
+        long maxExtra = 0;
+
         for (int i = 0; i < prices.length; i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s; // 不修改时的最大利润
+            total += strategy[i] * prices[i];
+            if (i < k / 2) {
+                continue;
+            }
 
-            // 1. 下标为 i 的元素入右半，交易策略从 s 变成 1
-            sum += p * (1 - s);
+            // 1. 入
+            extra -= strategy[i - k / 2] * prices[i - k / 2]; // 前 k/2 个元素的窗口
+            extra += (1 - strategy[i]) * prices[i]; // 后 k/2 个元素的窗口
 
-            if (i < k - 1) { // 尚未形成第一个窗口
-                // 在下一轮循环中，下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-                if (i >= k / 2 - 1) {
-                    sum -= prices[i - k / 2 + 1];
-                }
+            int left = i - k + 1;
+            if (left < 0) { // 尚未形成第一个窗口
                 continue;
             }
 
             // 2. 更新
-            maxSum = Math.max(maxSum, sum); // 修改带来的最大额外利润
+            maxExtra = Math.max(maxExtra, extra);
 
-            // 3. 出，为下一个窗口做准备
-            // 下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-            // 下标为 i-k+1 的元素从左半离开窗口，交易策略从 0 恢复为 strategy[i-k+1]
-            sum -= prices[i - k / 2 + 1] - prices[i - k + 1] * strategy[i - k + 1];
+            // 3. 出（计算方式和入相反）
+            extra += strategy[left] * prices[left]; // 前 k/2 个元素的窗口
+            extra -= (1 - strategy[left + k / 2]) * prices[left + k / 2]; // 后 k/2 个元素的窗口
         }
 
-        return total + maxSum;
+        return total + maxExtra;
     }
 }
 ```
@@ -302,64 +180,64 @@ class Solution {
 class Solution {
 public:
     long long maxProfit(vector<int>& prices, vector<int>& strategy, int k) {
-        long long total = 0, max_sum = 0, sum = 0;
+        long long total = 0;
+        long long extra = 0;
+        long long max_extra = 0;
+
         for (int i = 0; i < prices.size(); i++) {
-            int p = prices[i], s = strategy[i];
-            total += p * s; // 不修改时的最大利润
+            total += strategy[i] * prices[i];
+            if (i < k / 2) {
+                continue;
+            }
 
-            // 1. 下标为 i 的元素入右半，交易策略从 s 变成 1
-            sum += p * (1 - s);
+            // 1. 入
+            extra -= strategy[i - k / 2] * prices[i - k / 2]; // 前 k/2 个元素的窗口
+            extra += (1 - strategy[i]) * prices[i]; // 后 k/2 个元素的窗口
 
-            if (i < k - 1) { // 尚未形成第一个窗口
-                // 在下一轮循环中，下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-                if (i >= k / 2 - 1) {
-                    sum -= prices[i - k / 2 + 1];
-                }
+            int left = i - k + 1;
+            if (left < 0) { // 尚未形成第一个窗口
                 continue;
             }
 
             // 2. 更新
-            max_sum = max(max_sum, sum); // 修改带来的最大额外利润
+            max_extra = max(max_extra, extra);
 
-            // 3. 出，为下一个窗口做准备
-            // 下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-            // 下标为 i-k+1 的元素从左半离开窗口，交易策略从 0 恢复为 strategy[i-k+1]
-            sum -= prices[i - k / 2 + 1] - prices[i - k + 1] * strategy[i - k + 1];
+            // 3. 出（计算方式和入相反）
+            extra += strategy[left] * prices[left]; // 前 k/2 个元素的窗口
+            extra -= (1 - strategy[left + k / 2]) * prices[left + k / 2]; // 后 k/2 个元素的窗口
         }
 
-        return total + max_sum;
+        return total + max_extra;
     }
 };
 ```
 
 ```go [sol-Go]
 func maxProfit(prices, strategy []int, k int) int64 {
-	var total, maxSum, sum int
+	var total, extra, maxExtra int
 	for i, p := range prices {
-		s := strategy[i]
-		total += p * s // 不修改时的最大利润
+		total += strategy[i] * p
+		if i < k/2 {
+			continue
+		}
 
-		// 1. 下标为 i 的元素入右半，交易策略从 s 变成 1
-		sum += p * (1 - s)
+		// 1. 入
+		extra -= strategy[i-k/2] * prices[i-k/2] // 前 k/2 个元素的窗口
+		extra += (1 - strategy[i]) * p           // 后 k/2 个元素的窗口
 
-		if i < k-1 { // 尚未形成第一个窗口
-			// 在下一轮循环中，下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-			if i >= k/2-1 {
-				sum -= prices[i-k/2+1]
-			}
+		left := i - k + 1
+		if left < 0 { // 尚未形成第一个窗口
 			continue
 		}
 
 		// 2. 更新
-		maxSum = max(maxSum, sum) // 修改带来的最大额外利润
+		maxExtra = max(maxExtra, extra)
 
-		// 3. 出，为下一个窗口做准备
-		// 下标为 i-k/2+1 的元素从右半移到左半，交易策略从 1 变成 0
-		// 下标为 i-k+1 的元素从左半离开窗口，交易策略从 0 恢复为 strategy[i-k+1]
-		sum -= prices[i-k/2+1] - prices[i-k+1]*strategy[i-k+1]
+		// 3. 出（计算方式和入相反）
+		extra += strategy[left] * prices[left]               // 前 k/2 个元素的窗口
+		extra -= (1 - strategy[left+k/2]) * prices[left+k/2] // 后 k/2 个元素的窗口
 	}
-
-	return int64(total + maxSum)
+	return int64(total + maxExtra)
 }
 ```
 
