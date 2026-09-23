@@ -56,11 +56,13 @@ func dynamicInversion(nums, del []int) (res []int) {
 	}
 
 	f = make(fenwick, m+2)
+
 	var solve func(int, int)
 	solve = func(l, r int) {
 		if l+1 == r {
 			return
 		}
+
 		mid := (l + r) >> 1
 		solve(l, mid)
 		solve(mid, r)
@@ -94,6 +96,7 @@ func dynamicInversion(nums, del []int) (res []int) {
 
 		slices.SortFunc(a[l:r], func(a, b pair) int { return b.i - a.i })
 	}
+
 	solve(1, n+1)
 
 	// 这里的排序也可以改用数组记录 https://www.luogu.com.cn/record/297905725
@@ -109,7 +112,7 @@ func dynamicInversion(nums, del []int) (res []int) {
 }
 
 /*
-整体二分 / 分组二分 Parallel Binary Search
+整体二分 / 分组二分 (PBS, Parallel Binary Search)
 
 设答案候选项集合为 S，询问集合为 Q
 把 S 按大小（或者其他属性）分成两组 S1 和 S2
@@ -130,17 +133,24 @@ https://www.luogu.com.cn/problem/P3834 静态
 - https://www.luogu.com.cn/problem/P1527 二维版本
 https://www.luogu.com.cn/problem/P3527 静态
 https://www.luogu.com.cn/problem/P2617 动态
+- https://www.luogu.com.cn/problem/P3332 差分树状数组
 https://www.luogu.com.cn/problem/P7560
-https://www.luogu.com.cn/problem/P3332
 https://www.luogu.com.cn/problem/P3250 树
 https://codeforces.com/problemset/problem/868/F 2500 整体二分优化 DP
+https://codeforces.com/problemset/problem/1386/C 2800
 https://codeforces.com/problemset/problem/603/E 3000
+https://codeforces.com/problemset/problem/1920/F2 3000
+https://codeforces.com/problemset/problem/1989/F 3000
+https://atcoder.jp/contests/abc233/tasks/abc233_h 曼哈顿距离第 k 小
 https://atcoder.jp/contests/agc002/tasks/agc002_d
+https://atcoder.jp/contests/abc394/tasks/abc394_g
 https://www.hackerrank.com/contests/hourrank-23/challenges/selective-additions/problem
 https://www.codechef.com/problems/MCO16504
 */
 
 // 动态第 k 小
+// 第 k 小等价于：求最小的 x，满足 <= x 的数至少有 k 个
+// 第 k 大等价于：求最大的 x，满足 >= x 的数至少有 k 个
 // ！k 从 1 开始，元素都是非负数（不保证的话就都加个 bias）
 // https://www.luogu.com.cn/problem/P2617
 func parallelBinarySearch(nums []int, queries []struct{ tp, l, r, k int }) (res []int) {
@@ -187,36 +197,36 @@ func parallelBinarySearch(nums []int, queries []struct{ tp, l, r, k int }) (res 
 		return
 
 	next:
-		if low == high {
+		if low+1 == high { // 开区间为空
 			for _, i := range idx {
 				if qs[i].k >= 0 { // 查询（这里 >= 还是 > 都可以）
-					qs[i].k = sorted[low] // 答案记在 k 中（需要保证元素都是非负数）
+					qs[i].k = sorted[high] // 答案记在 k 中（需要保证元素都是非负数）
 				}
 			}
 			return
 		}
 
 		mid := (low + high) >> 1
-		x := sorted[mid]
-
+		midVal := sorted[mid]
 		var b, c []int
-		for _, p := range idx {
-			q := &qs[p]
+
+		for _, qid := range idx {
+			q := &qs[qid]
 			if q.k < 0 { // 修改
 				i, v := q.l, q.r
-				if v <= x {
-					b = append(b, p)
+				if v <= midVal {
+					b = append(b, qid)
 					t.update(i, q.k+2)
 				} else {
-					c = append(c, p)
+					c = append(c, qid)
 				}
 			} else { // 查询
 				cnt := t.query(q.l, q.r)
 				if cnt >= q.k {
-					b = append(b, p)
+					b = append(b, qid)
 				} else {
 					q.k -= cnt
-					c = append(c, p)
+					c = append(c, qid)
 				}
 			}
 		}
@@ -224,18 +234,19 @@ func parallelBinarySearch(nums []int, queries []struct{ tp, l, r, k int }) (res 
 		// 撤销修改（重置）
 		for _, i := range idx {
 			q := qs[i]
-			if q.k < 0 && q.r <= x {
+			if q.k < 0 && q.r <= midVal {
 				t.update(q.l, -q.k-2)
 			}
 		}
 
 		solve(b, low, mid)
-		solve(c, mid+1, high)
+		solve(c, mid, high)
 	}
 
-	solve(idx, 0, len(sorted)-1)
+	// 开区间二分
+	solve(idx, -1, len(sorted)-1)
 
-	for _, q := range qs[n:] {
+	for _, q := range qs { // qs[n:]
 		if q.k >= 0 {
 			res = append(res, q.k)
 		}
